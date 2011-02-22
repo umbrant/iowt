@@ -1,0 +1,6 @@
+=iowt=
+
+I/O workload tester for different numbers of nodes and situations.
+
+==twonode==
+Base case. Tests local vs. remote, memory vs. disk
