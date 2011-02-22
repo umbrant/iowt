@@ -55,20 +55,6 @@ void manager(void *threadid) {
     ev.data.fd = sockfd;
     int res = epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
 
-    // Wait for epoll to trigger
-    while (1) {
-        int nfds = epoll_wait(epfd, events,
-                MAX_EPOLL_EVENTS_PER_RUN,
-                EPOLL_RUN_TIMEOUT);
-        if (nfds < 0) die("Error in epoll_wait!");
-
-        // for each ready socket
-        for(int i = 0; i < nfds; i++) {
-            int fd = events[i].data.fd;
-            handle_io_on_socket(fd);
-        }
-    }
-
 
 
     // Listen for and accept new connections
@@ -95,8 +81,20 @@ void manager(void *threadid) {
 
 void request_handler(void *threadid)
 {
-    // Loop on epoll
-    while(true) {
+    // Loop and wait for epoll to trigger
+    while (1) {
+        int nfds = epoll_wait(epfd, events,
+                MAX_EPOLL_EVENTS_PER_RUN,
+                EPOLL_RUN_TIMEOUT);
+        if (nfds < 0) die("Error in epoll_wait!");
+
+        // for each ready socket
+        for(int i = 0; i < nfds; i++) {
+            int fd = events[i].data.fd;
+            //handle_io_on_socket(fd);
+
+            // Handle request here
+        }
     }
 }
 
