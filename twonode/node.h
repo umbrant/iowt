@@ -15,19 +15,31 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
 
+
+#ifdef DEBUG
+	#define PRINTF(...) printf(__VA_ARGS__)
+#else
+	#define PRINTF(...)
+#endif
+
 static int epfd;
 
 // epoll settings
-#define EPOLL_QUEUE_LEN 5
-#define MAX_EVENTS 5
+#define EPOLL_QUEUE_LEN 10
+#define MAX_EVENTS 10
 #define EPOLL_TIMEOUT -1
 
 // thread settings
-#define NUM_WORKER_THREADS 5
+#define NUM_WORKER_THREADS 50 
+
+// benchmark settings, these should be divisible
+#define NUM_BENCH_THREADS 5
+#define NUM_BENCH_REQUESTS 10000
 
 #define NUM_SERVERS 2
 static char *SERVERS[] = {
@@ -40,7 +52,8 @@ int main(int argc, char *argv[]);
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
 int handle_io_on_socket(int fd);
-void send_request(int destination);
+int send_request(int destination);
+void benchmark();
 
 void error(const char *msg);
 void usage();

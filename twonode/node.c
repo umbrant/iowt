@@ -84,7 +84,7 @@ void* manager_main(void *threadid) {
         		// add conn_sock to a worker's epoll
         		ev.events = EPOLLIN; // | EPOLLPRI | EPOLLERR | EPOLLHUP;
         		ev.data.fd = conn_sock;
-        		printf("Adding conn_sock (%d) to worker epfd (%d)\n",
+        		PRINTF("Adding conn_sock (%d) to worker epfd (%d)\n",
         				conn_sock, worker_epfds[counter]);
         		int rv = epoll_ctl(worker_epfds[counter++], 
         				EPOLL_CTL_ADD, conn_sock, &ev);
@@ -122,7 +122,7 @@ void* request_handler(void *fd_ptr)
   			if (rv < 0) {
     			error("ERROR reading from socket\n");
   			} else {
-    			printf("Here is the message (%d): %s\n", epfd, buffer);
+    			PRINTF("Message (%d): %s\n", epfd, buffer);
   			}
   			// Write to the socket
   			char outmsg[] = "I got your message";
@@ -138,16 +138,11 @@ void* request_handler(void *fd_ptr)
 }
 
 
-void send_request(int destination)
+int send_request(int destination)
 {
   	int sockfd, n, rv;
   	struct addrinfo hints;
   	struct addrinfo *result, *rp;
-
-
-  	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  	if (sockfd < 0) 
-    	error("ERROR opening socket\n");
 
   	// Lookup server in the destination table
   	char* server = SERVERS[destination];
@@ -164,7 +159,7 @@ void send_request(int destination)
   	if (rv != 0)
   	{   
     	fprintf(stderr, "error in getaddrinfo: %s\n", gai_strerror(rv));
-    	return;
+    	return -1;
   	}
 
   	// Traverse result linked list, until we connect
@@ -185,20 +180,20 @@ void send_request(int destination)
 
   	if(rp == NULL) {
     	fprintf(stderr, "Could not connect to server %s\n", server);
-    	exit(-1);
+  		return -1;
   	}
 
   	char s[INET6_ADDRSTRLEN];
   	inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
   			s, sizeof(s));
-  	printf("client connected to %s on port %s\n", s, PORT_STR);
+  	PRINTF("client connected to %s on port %s\n", s, PORT_STR);
 
   	// Have to free the linked list of addrs
   	freeaddrinfo(result);
 
   	// Write a message
   	char outmsg[] = "Hello world from the client!";
-  	printf("Sending: %s\n", outmsg);
+  	PRINTF("Sending: %s\n", outmsg);
   	n = send(sockfd, outmsg, strlen(outmsg), 0);
   	if (n < 0) 
     	error("ERROR writing to socket");
@@ -209,9 +204,10 @@ void send_request(int destination)
   	n = recv(sockfd, buffer, 255, 0);
   	if (n < 0) 
     	error("ERROR reading from socket");
-  	printf("The response: %s\n",buffer);
+  	PRINTF("The response: %s\n",buffer);
 
   	close(sockfd);
+  	return 0;
 }
 
 
@@ -248,6 +244,11 @@ int main (int argc, char *argv[])
     	}
     	send_request(dest);
   	}
+  	// Benchmark
+  	else if(strcmp(argv[1], "benchmark") == 0) {
+		benchmark();
+  	}
+  	// Else just print out the args...debug
   	else {
     	int i;
     	for(i=0; i<argc; i++) {
@@ -258,6 +259,52 @@ int main (int argc, char *argv[])
   	pthread_exit(NULL);
 }
 
+void* benchmark_worker(void* num_ptr)
+{
+	int i;
+	int requests = *(int*)num_ptr;
+	for(i=0; i<requests; i++) {
+		int rv = send_request(0);
+		while(rv) {
+			rv = send_request(0);
+		}
+	}
+
+	return 0;
+}
+
+
+void benchmark() {
+	int requests_per_thread = NUM_BENCH_REQUESTS / NUM_BENCH_THREADS;
+	int i;
+	struct timeval start, end;
+	struct timezone tz;
+	tz.tz_minuteswest = 480;
+	tz.tz_dsttime = 0;
+
+	pthread_t workers[NUM_BENCH_THREADS];
+
+	gettimeofday(&start, &tz);
+	for(i=0; i<NUM_BENCH_THREADS; i++) {
+		pthread_create(&workers[i], NULL, benchmark_worker, 
+				(void*)&requests_per_thread);
+	}
+	for(i=0; i<NUM_BENCH_THREADS; i++) {
+		pthread_join(workers[i], NULL);
+	}
+	gettimeofday(&end, &tz);
+
+	long start_usec = start.tv_sec*1000000 + start.tv_usec;
+	long end_usec = end.tv_sec*1000000 + end.tv_usec;
+
+	long diff_usec = end_usec - start_usec;
+	double diff = (double)diff_usec / (double)1000000;
+	
+	double req_per_sec = (double)(NUM_BENCH_REQUESTS) / (double)diff;
+	printf("start: %ld end: %ld diff: %ld\n", start_usec, 
+			end_usec, diff_usec);
+	printf("Requests per second: %f\n", req_per_sec);
+}
 
 void error(const char *msg)
 {
