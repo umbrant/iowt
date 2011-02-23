@@ -42,11 +42,31 @@ static int epfd;
 #define NUM_BENCH_THREADS 5
 #define NUM_BENCH_REQUESTS 100*1000
 
+// Lookup table for destinations
+// Make sure to increment NUM_SERVERS appropriately
 #define NUM_SERVERS 2
 static char *SERVERS[] = {
    "127.0.0.1",
    "10.0.0.1"
 };
+
+// Strut and enums for defining a request
+typedef struct request { 
+    unsigned char storage; 
+    unsigned char compression; 
+} request_t; 
+
+enum STORAGE {
+    STORAGE_DISK,
+    STORAGE_MEM
+};
+enum COMPRESSION {
+    COMPRESSION_UNCOMPRESSSED,
+    COMPRESSION_DEFLATE,
+    COMPRESSION_LZO
+};
+
+
 
 int main(int argc, char *argv[]);
 
