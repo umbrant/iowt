@@ -35,11 +35,12 @@ static int epfd;
 #define EPOLL_TIMEOUT -1
 
 // thread settings
-#define NUM_WORKER_THREADS 50 
+#define NUM_WORKER_THREADS 20 
 
 // benchmark settings, these should be divisible
+// NUM_BENCH_REQUESTS should also be a multiple of 1000
 #define NUM_BENCH_THREADS 5
-#define NUM_BENCH_REQUESTS 10000
+#define NUM_BENCH_REQUESTS 100*1000
 
 #define NUM_SERVERS 2
 static char *SERVERS[] = {
