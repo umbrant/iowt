@@ -4,8 +4,6 @@
 void* manager_main(void *threadid) {
 
   	int listen_sock;
-  	socklen_t cli_len;
-  	char buffer[256];
   	int i;
 
   	// Initialize socket
@@ -120,7 +118,6 @@ void* request_handler(void *fd_ptr)
     		int sockfd = events[i].data.fd;
   			char buffer[256];
   			// Read from the socket
-  			int ret = 0;
   			int rv = recv(sockfd, buffer, 256, 0);
   			if (rv < 0) {
     			error("ERROR reading from socket\n");
@@ -141,7 +138,7 @@ void* request_handler(void *fd_ptr)
 }
 
 
-void request_sender(int destination)
+void send_request(int destination)
 {
   	int sockfd, n, rv;
   	struct addrinfo hints;
@@ -158,9 +155,9 @@ void request_sender(int destination)
   	// Convert from human readable -> addrinfo
 
   	memset(&hints, 0, sizeof(struct addrinfo));
-  	hints.ai_family = AF_INET;
+  	hints.ai_family = AF_UNSPEC;
   	hints.ai_socktype = SOCK_STREAM;
-  	hints.ai_flags = 0;
+  	hints.ai_flags = AI_PASSIVE;
   	hints.ai_protocol = 0;
 
   	rv = getaddrinfo(server, PORT_STR, &hints, &result);
@@ -172,12 +169,18 @@ void request_sender(int destination)
 
   	// Traverse result linked list, until we connect
   	for (rp = result; rp != NULL; rp=rp->ai_next) {
-    	int sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    	if(sockfd == -1)
+    	sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    	if(sockfd == -1) {
+      		perror("client: socket");
       		continue;
-    	if(connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1)
-      		break; // Success!
-    	close(sockfd);
+      	}
+    	if(connect(sockfd, rp->ai_addr, rp->ai_addrlen) != 0) {
+    		close(sockfd);
+			perror("client: connect");
+			continue;
+		}
+
+      	break; // Success!
   	}
 
   	if(rp == NULL) {
@@ -185,27 +188,28 @@ void request_sender(int destination)
     	exit(-1);
   	}
 
-  	// Have to free the linked list now
+  	char s[INET6_ADDRSTRLEN];
+  	inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
+  			s, sizeof(s));
+  	printf("client connected to %s on port %s\n", s, PORT_STR);
+
+  	// Have to free the linked list of addrs
   	freeaddrinfo(result);
 
   	// Write a message
   	char outmsg[] = "Hello world from the client!";
   	printf("Sending: %s\n", outmsg);
-  	n = write(sockfd, outmsg, strlen(outmsg));
+  	n = send(sockfd, outmsg, strlen(outmsg), 0);
   	if (n < 0) 
     	error("ERROR writing to socket");
-  	printf("LOL\n");
-
 
   	// Read the response
-  	/*
   	char buffer[256];
   	memset(buffer, '\0', 256);
-  	n = read(sockfd,buffer,255);
+  	n = recv(sockfd, buffer, 255, 0);
   	if (n < 0) 
     	error("ERROR reading from socket");
   	printf("The response: %s\n",buffer);
-  	*/
 
   	close(sockfd);
 }
@@ -242,7 +246,7 @@ int main (int argc, char *argv[])
           			NUM_SERVERS);
       		exit(1);
     	}
-    	request_sender(dest);
+    	send_request(dest);
   	}
   	else {
     	int i;
@@ -274,4 +278,13 @@ int set_nonblocking(int sockfd) {
 		flags = 0;
 	}
 	return fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+}
+
+void *get_in_addr(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }

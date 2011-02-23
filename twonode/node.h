@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <arpa/inet.h>
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
@@ -39,10 +40,11 @@ int main(int argc, char *argv[]);
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
 int handle_io_on_socket(int fd);
-void request_sender(int destination);
+void send_request(int destination);
 
 void error(const char *msg);
 void usage();
 int set_nonblocking(int sockfd);
+void* get_in_addr(struct sockaddr *sa);
 
 #endif
