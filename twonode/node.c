@@ -22,7 +22,7 @@ int main (int argc, char *argv[])
     }
 
     // Server
-    if(argv[1] == "server") {
+    if(strcmp(argv[1],"server") == 0) {
 
         pthread_t manager;
 
@@ -32,8 +32,11 @@ int main (int argc, char *argv[])
             printf("Error, could not start server manager thread.\n");
             exit(-1);
         }
+
+        pthread_join(manager, NULL);
     }
-    else if(argv[1] == "client") {
+    // Client
+    else if(strcmp(argv[1],"client") == 0) {
         if(argc < 3) {
             usage();
             exit(1);
@@ -46,9 +49,13 @@ int main (int argc, char *argv[])
         }
         request_sender(dest);
     }
-
-
-    // Start off some request workload here
+    else {
+        int i;
+        for(i=0; i<argc; i++) {
+            printf("%s ", argv[i]);
+        }
+        printf("\n");
+    }
 
     pthread_exit(NULL);
 }
@@ -56,29 +63,15 @@ int main (int argc, char *argv[])
 
 void* manager_main(void *threadid) {
 
-    int sockfd;
-    socklen_t clilen;
+    int listen_sock;
+    socklen_t cli_len;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int i;
 
-    // Set up epoll to watch the socket file descriptor
-    int epfd = epoll_create(EPOLL_QUEUE_LEN);
-    static struct epoll_event ev;
-
-    // Start off worker threads
-    pthread_t workers[NUM_WORKER_THREADS];
-    for(i=0; i<NUM_WORKER_THREADS; i++) {
-        int rv = pthread_create(&workers[i], NULL, request_handler, &epfd);
-        if(rv) {
-            printf("Error, could not start worker thread %d\n", i);
-            exit(-1);
-        }
-    }
-
     // Initialize socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
+    listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_sock < 0) 
         error("ERROR opening socket");
     memset(&serv_addr, '\0', sizeof(serv_addr));
 
@@ -86,82 +79,93 @@ void* manager_main(void *threadid) {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(PORT_INT);
 
-    int rv = bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+    int rv = bind(listen_sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
     if(rv < 0)
         error("ERROR on binding");
 
     // Set up socket for listening
-    listen(sockfd,10);
-    clilen = sizeof(cli_addr);
+    listen(listen_sock, 5);
+    cli_len = sizeof(cli_addr);
 
-    // Loop: accept new connections, add them to epoll
-    while(1) {
-        // accept blocks for new connection
-        int newsockfd = accept(sockfd, 
-                (struct sockaddr *) &cli_addr, 
-                &clilen);
-        if (newsockfd < 0) 
-            error("ERROR on accept");
-
-        // add connection to epoll
-        ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
-        ev.data.fd = newsockfd;
-        int res = epoll_ctl(epfd, EPOLL_CTL_ADD, newsockfd, &ev);
+    // Set up epoll to watch the socket file descriptor
+    epfd = epoll_create(EPOLL_QUEUE_LEN);
+    static struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
+    ev.data.fd = listen_sock;
+    int res = epoll_ctl(epfd, EPOLL_CTL_ADD, listen_sock, &ev);
+    if(res == -1) {
+        fprintf(stderr, "error in epoll_ctl setting up listener socket\n");
+        exit(-1);
     }
 
-    close(sockfd);
+    // Loop: wait for new new connections, add them to epoll
+    printf("starting manager loop\n");
+    while(1) {
+        struct epoll_event events[MAX_EVENTS];
+        int nfds = epoll_wait(epfd, events, MAX_EVENTS, EPOLL_TIMEOUT);
+        if(nfds == -1) {
+            perror("epoll_pwait");
+            exit(-1);
+        }
+
+        for(i=0; i<nfds; i++) {
+            if(events[i].data.fd == listen_sock) {
+                int conn_sock = accept(listen_sock, 
+                        (struct sockaddr *) &cli_addr, &cli_len);
+
+                if(conn_sock == -1) {
+                    perror("accept");
+                    exit(-1);
+                } 
+
+                // add conn_sock to epoll
+                ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
+                ev.data.fd = conn_sock;
+                int rv = epoll_ctl(epfd, EPOLL_CTL_ADD, conn_sock, &ev);
+                if(rv == -1) {
+                    perror("epoll_ctl: conn_sock");
+                    exit(-1);
+                }
+            } else {
+                // Spawn new thread to handle request
+                pthread_t temp;
+                pthread_create(&temp, NULL, request_handler, events[i].data.fd);
+            }
+        }
+    }
+
+    close(listen_sock);
     pthread_exit(0); 
 }
 
 void* request_handler(void *epfd_ptr)
 {
-    int epfd = (int)&epfd_ptr;
-    int i;
-    static struct epoll_event events[MAX_EPOLL_EVENTS_PER_RUN];
-    memset(events, '\0', sizeof(struct epoll_event)*MAX_EPOLL_EVENTS_PER_RUN);
-    // Loop and wait for epoll to trigger
-    while (1) {
-        int nfds = epoll_wait(epfd, events,
-                MAX_EPOLL_EVENTS_PER_RUN,
-                EPOLL_RUN_TIMEOUT);
-        if (nfds < 0) error("Error in epoll_wait!");
+    int conn_sock = (int)epfd_ptr;
+    char buffer[256];
 
-        // for each ready socket
-        for(i = 0; i < nfds; i++) {
-            int fd = events[i].data.fd;
-            int rv = handle_io_on_socket(fd);
-            if(rv<0) {
-                printf("Error in handle_io_on_socket: %d\n", rv);
-            }
-        }
+    // Read from the socket
+    int ret = 0;
+    int rv = recv(conn_sock, buffer, 255, NULL);
+    if (rv < 0) {
+        fprintf(stderr, "ERROR reading from socket\n");
+        pthread_exit(0);
+    } else {
+        printf("Here is the message: %s\n", buffer);
     }
+
+    // Write to the socket
+    char outmsg[] = "I got your message";
+    rv = send(conn_sock, outmsg, strlen(outmsg), NULL);
+    
+    if(rv == -1) {
+        fprintf(stderr, "ERROR writing to socket\n");
+        pthread_exit(0);
+    }
+
     pthread_exit(0); 
 }
 
 int handle_io_on_socket(int fd) {
-    // init buffer
-    char buffer[256];
-    memset(buffer, '\0', 256);
-
-    // Read and write
-    int n = read(fd,buffer,255);
-    int rv = 0;
-    if (n < 0) {
-        printf("ERROR reading from socket\n");
-        rv = -1;
-    }
-    printf("Here is the message: %s\n",buffer);
-
-    n = write(fd,"I got your message\n",18);
-    if (n < 0) {
-        printf("ERROR writing to socket\n");
-        rv = -2;
-    }
-
-    // close fd
-    close(fd);
-
-    return rv;
 }
 
 void request_sender(int destination)
@@ -212,9 +216,11 @@ void request_sender(int destination)
 
     // Write a message
     char outmsg[] = "Hello world from the client!";
-    n = write(sockfd,outmsg,strlen(outmsg));
+    printf("Sending: %s\n", outmsg);
+    n = write(sockfd, outmsg, strlen(outmsg));
     if (n < 0) 
         error("ERROR writing to socket");
+    printf("LOL\n");
 
     // Read the response
     char buffer[256];
@@ -222,7 +228,7 @@ void request_sender(int destination)
     n = read(sockfd,buffer,255);
     if (n < 0) 
         error("ERROR reading from socket");
-    printf("%s\n",buffer);
+    printf("The response: %s\n",buffer);
 
     close(sockfd);
 }
