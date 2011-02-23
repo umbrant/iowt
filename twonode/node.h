@@ -12,6 +12,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
@@ -20,7 +22,7 @@ static int epfd;
 
 // epoll settings
 #define EPOLL_QUEUE_LEN 5
-#define MAX_EVENTS 1
+#define MAX_EVENTS 5
 #define EPOLL_TIMEOUT -1
 
 // thread settings
@@ -33,11 +35,14 @@ static char *SERVERS[] = {
 };
 
 int main(int argc, char *argv[]);
-void error(const char *msg);
 
 void* manager_main(void *threadid);
-void* request_handler(void *epfd_ptr);
+void* request_handler(void *fd_ptr);
 int handle_io_on_socket(int fd);
 void request_sender(int destination);
+
+void error(const char *msg);
+void usage();
+int set_nonblocking(int sockfd);
 
 #endif
