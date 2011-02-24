@@ -1,24 +1,27 @@
 #ifndef IOWT_H
 #define IOWT_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/types.h> 
-#include <sys/socket.h>
-#include <sys/epoll.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <pthread.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <arpa/inet.h>
-#include <sys/time.h>
+
+#include <netinet/in.h>
+
+#include <sys/epoll.h>
+#include <sys/mman.h>
 #include <sys/sendfile.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h> 
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
@@ -54,7 +57,21 @@ static char *SERVERS[] = {
 };
 
 // Directory where test files are stored
-static char FILE_DIR[] = "/home/awang/Downloads/enwiki";
+static char FILE_DIR[] = "/home/andrew/Downloads/enwiki";
+
+// Set of files mlock'd into memory
+typedef struct memfile {
+	char* buffer;
+	size_t size;
+} memfile_t;
+struct locked_memfiles {
+	memfile_t raw_64;
+	memfile_t gzip_64;
+	memfile_t lzo_64;
+	memfile_t raw_256;
+	memfile_t gzip_256;
+	memfile_t lzo_256;
+} memfiles;
 
 // Strut and enums for defining a request
 typedef struct request { 
@@ -87,6 +104,9 @@ int handle_io_on_socket(int fd);
 int send_request(int destination);
 void benchmark();
 
+void lock_files_in_memory();
+void init_memfile(char* filename, memfile_t* memfile);
+int parse_and_handle_request(request_t request, int sockfd);
 int fd_from_request(request_t request, int* in_fd);
 void print_request(request_t request);
 void error(const char *msg);

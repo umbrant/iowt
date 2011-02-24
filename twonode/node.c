@@ -6,6 +6,9 @@ void* manager_main(void *threadid) {
     int listen_sock;
     int i;
 
+	// Initialize memfiles, pinned into RAM
+	lock_files_in_memory();
+
     // Initialize socket
     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (listen_sock < 0) {
@@ -128,17 +131,37 @@ void* request_handler(void *fd_ptr)
                 error("ERROR reading from socket\n");
             }
 
-            int in_fd;
-            int size = fd_from_request(request, &in_fd);
-
-            // Write to the socket
-            rv = sendfile(sockfd, in_fd, 0, size);
-            if(rv == -1) {
-                error("ERROR writing to socket\n");
-            }
-            close(sockfd);
+			rv = parse_and_handle_request(request, sockfd);
+        	close(sockfd);
         }
     }
+}
+
+
+// Parses the request and decides whether to serve the request
+// from disk or from memory (two different mechanisms)
+int parse_and_handle_request(request_t request, int sockfd)
+{
+	// Disk request
+	if(request.storage == STORAGE_DISK) {
+        int in_fd;
+        int size = fd_from_request(request, &in_fd);
+
+        // Write to the socket
+        int rv = sendfile(sockfd, in_fd, 0, size);
+        if(rv == -1) {
+            error("ERROR writing to socket\n");
+        }
+	}
+	// Memory request
+	else if(request.storage == STORAGE_MEMORY) {
+
+	}
+	else {
+		error("Invalid request.storage value!");
+	}
+
+	return 0;
 }
 
 
@@ -324,6 +347,57 @@ void benchmark() {
 }
 
 
+void lock_files_in_memory()
+{
+    char filename[1024];
+    memset(filename, '\0', 1024);
+    strcat(filename, FILE_DIR);
+
+	// Lock the 64M files
+	strcat(filename, "/64/raw/ap");
+	init_memfile(filename, &memfiles.raw_64);
+    memset(filename, '\0', 1024);
+	strcat(filename, "/64/gzip/ap.gz");
+	init_memfile(filename, &memfiles.gzip_64);
+    memset(filename, '\0', 1024);
+	strcat(filename, "/64/lzo/ap.lzo");
+	init_memfile(filename, &memfiles.lzo_64);
+    memset(filename, '\0', 1024);
+
+	// Lock the 256M files
+	strcat(filename, "/256/raw/ap");
+	init_memfile(filename, &memfiles.raw_256);
+    memset(filename, '\0', 1024);
+	strcat(filename, "/256/gzip/ap.gz");
+	init_memfile(filename, &memfiles.gzip_256);
+    memset(filename, '\0', 1024);
+	strcat(filename, "/256/lzo/ap.lzo");
+	init_memfile(filename, &memfiles.lzo_256);
+    memset(filename, '\0', 1024);
+}
+
+void init_memfile(char* filename, memfile_t* memfile)
+{
+	// Open file
+	int fd = open(filename, O_RDONLY);
+    struct stat s;
+    int rv = fstat(fd, &s);
+    if(rv <0) {
+        error("Stat of file failed.");
+    }
+    // Read into memfile buffer
+    int size = s.st_size;
+	memfile->size = size;
+	memfile->buffer = (char*)malloc(size*sizeof(char));
+	rv = read(fd, memfile->buffer, size);
+	if(rv != size) {
+		printf("Mismatch between size %d and read %d\n", size, rv);
+	}
+	// Lock the pages
+	mlock(memfile->buffer, memfile->size);
+}
+
+
 int fd_from_request(request_t request, int* in_fd)
 {
     char filename[1024];
@@ -332,8 +406,6 @@ int fd_from_request(request_t request, int* in_fd)
     char suffix[6];
 
     print_request(request);
-
-    // TODO: in memory vs. on disk
 
     // Construct filename based on request options
     switch(request.size)

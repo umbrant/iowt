@@ -1,4 +1,4 @@
-DEBUG=-DDEBUG -g -ggdb
+#DEBUG=-DDEBUG -g -ggdb
 
 LIBS=-lpthread
 CFLAGS=-Wall -O2
