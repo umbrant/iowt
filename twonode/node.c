@@ -406,15 +406,15 @@ void init_mmap_files()
 
 	// Lock the 256M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/none/ap");
+	strcat(filename, "/256/none/al");
 	mmap_file(filename, &mmapfiles.raw_256);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/gzip/ap.gz");
+	strcat(filename, "/256/gzip/al.gz");
 	mmap_file(filename, &mmapfiles.gzip_256);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/lzo/ap.lzo");
+	strcat(filename, "/256/lzo/al.lzo");
 	mmap_file(filename, &mmapfiles.lzo_256);
 }
 
@@ -459,8 +459,10 @@ int disk_request(request_t request, int* in_fd)
 {
     char filename[1024];
     memset(filename, '\0', 1024);
-    strcat(filename, FILE_DIR);
     char suffix[6];
+    memset(suffix, '\0', 6);
+
+    strcat(filename, FILE_DIR);
 
     print_request(request);
 
