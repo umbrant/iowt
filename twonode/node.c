@@ -12,6 +12,9 @@ void* manager_main(void *threadid) {
         error("ERROR opening listener socket");
     }
 
+    // Ignore SIG_PIPE's (HACK HACK XXX FIXME?)
+    signal(SIGPIPE, SIG_IGN);
+
     // Set socket to release bind
     int optVal = 1;
     setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, 
@@ -130,7 +133,6 @@ void* request_handler(void *fd_ptr)
 
             // Write to the socket
             rv = sendfile(sockfd, in_fd, 0, size);
-
             if(rv == -1) {
                 error("ERROR writing to socket\n");
             }
@@ -197,7 +199,7 @@ int send_request(int destination)
     request_t request;
     request.storage = STORAGE_MEMORY;
     request.compression = COMPRESSION_GZIP;
-    request.size = SIZE_64;
+    request.size = SIZE_256;
 
     print_request(request);
 
@@ -208,10 +210,10 @@ int send_request(int destination)
 
     // Read the response
     int response_size = 0;
-    static int bufsize = 1024*1024;
+    static int bufsize = 512;
     char buffer[bufsize];
     memset(buffer, '\0', bufsize);
-    int bytes_to_read = bufsize-1;
+    int bytes_to_read = bufsize;
     do {
         n = recv(sockfd, buffer, bytes_to_read*sizeof(char), 0);
         if (n < 0) 
@@ -365,7 +367,7 @@ int fd_from_request(request_t request, int* in_fd)
     }
 
     // Finally, the file basename
-    strcat(filename, "/aa");
+    strcat(filename, "/ab");
     strcat(filename, suffix);
 
     PRINTF("Filename: %s\n", filename);
@@ -381,6 +383,8 @@ int fd_from_request(request_t request, int* in_fd)
         error("Stat of file failed.");
     }
     int size = s.st_size;
+    PRINTF("Size of file: %d\n", size);
+
     return size;
 }
 
