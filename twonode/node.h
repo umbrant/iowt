@@ -60,13 +60,17 @@ static char *SERVERS[] = {
 static char FILE_DIR[] = "/home/andrew/Downloads/enwiki";
 
 // Set of files mmap'd into memory
-struct locked_memfiles {
-	int raw_64;
-	int gzip_64;
-	int lzo_64;
-	int raw_256;
-	int gzip_256;
-	int lzo_256;
+typedef struct memfile {
+	char* buffer;
+	size_t size;
+} memfile_t;
+struct mmapfiles {
+	memfile_t raw_64;
+	memfile_t gzip_64;
+	memfile_t lzo_64;
+	memfile_t raw_256;
+	memfile_t gzip_256;
+	memfile_t lzo_256;
 } mmapfiles;
 
 // Strut and enums for defining a request
@@ -97,7 +101,7 @@ typedef struct benchmark {
 } benchmark_t;
 
 
-int main(int argc, char *argv[]);
+//int main(int argc, char *argv[]);
 
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
@@ -106,12 +110,12 @@ int send_request(request_t request, int destination);
 void benchmark(request_t request, int destination);
 
 void init_mmap_files();
-void mmap_file(char* filename, int* mmapfd);
+void mmap_file(char* filename, memfile_t* memfile);
 
 int make_request(int argc, char* argv[], request_t* request, int* destination);
 int fd_from_request(request_t request, int* in_fd);
 int disk_request(request_t request, int* in_fd);
-int memory_request(request_t request, int* in_fd);
+int memory_request(request_t request, memfile_t* memfile);
 
 void print_request(request_t request);
 void error(const char *msg);
