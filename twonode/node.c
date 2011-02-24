@@ -141,10 +141,12 @@ void* request_handler(void *fd_ptr)
         	close(sockfd);
         }
     }
+
+    return 0;
 }
 
 
-int send_request(int destination)
+int send_request(request_t request, int destination)
 {
     int sockfd, n, rv;
     struct addrinfo hints;
@@ -197,14 +199,7 @@ int send_request(int destination)
     // Have to free the linked list of addrs
     freeaddrinfo(result);
 
-    // Construct request
-    request_t request;
-    request.storage = STORAGE_MEMORY;
-    request.compression = COMPRESSION_GZIP;
-    request.size = SIZE_256;
-
     print_request(request);
-
     PRINTF("Sending request...\n");
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
@@ -232,11 +227,13 @@ int send_request(int destination)
 
 int main (int argc, char *argv[])
 {
+	request_t request;
+	int dest;
+
     if(argc < 2) {
         usage();
         exit(1);
     }
-
     // Server
     if(strcmp(argv[1],"server") == 0) {
         pthread_t manager;
@@ -248,24 +245,15 @@ int main (int argc, char *argv[])
         }
         pthread_join(manager, NULL);
     }
-
     // Client
     else if(strcmp(argv[1],"client") == 0) {
-        if(argc < 3) {
-            usage();
-            exit(1);
-        }
-        int dest = atoi(argv[2]);
-        if(dest > NUM_SERVERS-1) {
-            printf("Invalid destination server number (must be less than %d)\n",
-                    NUM_SERVERS);
-            exit(1);
-        }
-        send_request(dest);
+		make_request(argc, argv, &request, &dest);
+        send_request(request, dest);
     }
     // Benchmark
     else if(strcmp(argv[1], "benchmark") == 0) {
-        benchmark();
+		make_request(argc, argv, &request, &dest);
+        benchmark(request, dest);
     }
     // Else just print out the args...debug
     else {
@@ -278,22 +266,74 @@ int main (int argc, char *argv[])
     pthread_exit(NULL);
 }
 
+int make_request(int argc, char* argv[], request_t* request, int* destination) {
+    int dest, size, compression, storage;
+    if(argc < 6) {
+        usage();
+        exit(1);
+    }
+    dest = atoi(argv[2]);
+    if(dest > NUM_SERVERS-1 || dest < 0) {
+        printf("Invalid destination server number (must be between 0 and %d)\n",
+                NUM_SERVERS);
+        exit(1);
+    }
+	// size
+	if(strcmp(argv[3], "64") == 0)
+		size = SIZE_64;
+	else if(strcmp(argv[3], "256") == 0)
+		size = SIZE_256;
+	else {
+		usage();
+		exit(1);
+	}
+	// compression
+	if(strcmp(argv[4], "none")==0)
+		compression = COMPRESSION_NONE;
+	else if(strcmp(argv[4], "gzip")==0)
+		compression = COMPRESSION_GZIP;
+	else if(strcmp(argv[4], "lzo")==0)
+		compression = COMPRESSION_LZO;
+	else {
+		usage();
+		exit(1);
+	}
+	// storage
+	if(strcmp(argv[5], "disk") == 0)
+		storage = STORAGE_DISK;
+	else if(strcmp(argv[5], "memory") == 0)
+		storage = STORAGE_MEMORY;
+	else {
+		usage();
+		exit(1);
+	}
+
+	request->size = size;
+	request->compression = compression;
+	request->storage = storage;
+
+	*destination = dest;
+
+	return 0;
+}
+
 void* benchmark_worker(void* num_ptr)
 {
+	benchmark_t bench = *(benchmark_t*)num_ptr;
     int i;
-    int requests = *(int*)num_ptr;
-    for(i=0; i<requests; i++) {
-        int rv = send_request(0);
-        while(rv) {
-            rv = send_request(0);
-        }
+    for(i=0; i<bench.iterations; i++) {
+    	int rv = 0;
+    	do {
+        	rv = send_request(bench.request, bench.destination);
+        } while(rv);
     }
-
+	free(num_ptr);
     return 0;
 }
 
 
-void benchmark() {
+void benchmark(request_t request, int destination) 
+{
     int requests_per_thread = NUM_BENCH_REQUESTS / NUM_BENCH_THREADS;
     int i;
     struct timeval start, end;
@@ -303,10 +343,16 @@ void benchmark() {
 
     pthread_t workers[NUM_BENCH_THREADS];
 
+
     gettimeofday(&start, &tz);
     for(i=0; i<NUM_BENCH_THREADS; i++) {
+    	// Set up benchmark parameters to be passed to workers
+    	benchmark_t* bench = (benchmark_t*)malloc(sizeof(benchmark_t));
+    	bench->request = request;
+    	bench->destination = destination;
+    	bench->iterations = requests_per_thread;
         pthread_create(&workers[i], NULL, benchmark_worker, 
-                (void*)&requests_per_thread);
+                (void*)bench);
     }
     for(i=0; i<NUM_BENCH_THREADS; i++) {
         pthread_join(workers[i], NULL);
@@ -318,7 +364,7 @@ void benchmark() {
 
     long diff_usec = end_usec - start_usec;
     double diff = (double)diff_usec / (double)1000000;
-    
+
     double req_per_sec = (double)(NUM_BENCH_REQUESTS) / (double)diff;
     printf("start: %ld end: %ld diff: %ld\n", start_usec, 
             end_usec, diff_usec);
@@ -377,13 +423,13 @@ void mmap_file(char* filename, int* mmapfd)
     // Do we need to read to page it all in?
     // TODO: this is skipped for now, might need to
     /*
-	memfile->size = size;
-	memfile->buffer = (char*)malloc(size*sizeof(char));
-	rv = read(fd, memfile->buffer, size);
-	if(rv != size) {
-		printf("Mismatch between size %d and read %d\n", size, rv);
-	}
-	*/
+	   memfile->size = size;
+	   memfile->buffer = (char*)malloc(size*sizeof(char));
+	   rv = read(fd, memfile->buffer, size);
+	   if(rv != size) {
+	   printf("Mismatch between size %d and read %d\n", size, rv);
+	   }
+	   */
 }
 
 

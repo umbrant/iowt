@@ -76,20 +76,25 @@ typedef struct request {
     unsigned char storage; 
 } request_t; 
 
-enum STORAGE {
-    STORAGE_DISK,
-    STORAGE_MEMORY
+enum SIZE {
+    SIZE_64,
+    SIZE_256
 };
 enum COMPRESSION {
     COMPRESSION_NONE,
     COMPRESSION_GZIP,
     COMPRESSION_LZO
 };
-enum SIZE {
-    SIZE_64,
-    SIZE_256
+enum STORAGE {
+    STORAGE_DISK,
+    STORAGE_MEMORY
 };
 
+typedef struct benchmark {
+	request_t request;
+	int destination;
+	int iterations;
+} benchmark_t;
 
 
 int main(int argc, char *argv[]);
@@ -97,12 +102,13 @@ int main(int argc, char *argv[]);
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
 int handle_io_on_socket(int fd);
-int send_request(int destination);
-void benchmark();
+int send_request(request_t request, int destination);
+void benchmark(request_t request, int destination);
 
 void init_mmap_files();
 void mmap_file(char* filename, int* mmapfd);
 
+int make_request(int argc, char* argv[], request_t* request, int* destination);
 int fd_from_request(request_t request, int* in_fd);
 int disk_request(request_t request, int* in_fd);
 int memory_request(request_t request, int* in_fd);
