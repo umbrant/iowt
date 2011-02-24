@@ -48,7 +48,7 @@ void* manager_main(void *threadid) {
     }
 
     // Create worker threads
-    // Each worker has their own epoll fd, loadbalance among them
+    // Each worker has their own epoll fd, RR load balance them
     pthread_t workers[NUM_WORKER_THREADS];
     int worker_epfds[NUM_WORKER_THREADS];
     for(i=0; i<NUM_WORKER_THREADS; i++) {
@@ -60,7 +60,7 @@ void* manager_main(void *threadid) {
                 &worker_epfds[i]);
     }
 
-    // Loop: wait for new new connections, add them to epoll
+    // Loop: wait for new new connections, add them to worker epolls
     printf("starting manager loop\n");
 
     int counter = 0;
@@ -92,6 +92,7 @@ void* manager_main(void *threadid) {
                     perror("epoll_ctl: conn_sock");
                     exit(-1);
                 }
+                // Wrap load balance counter around
                 counter = counter%NUM_WORKER_THREADS;
             }
         }
@@ -116,17 +117,20 @@ void* request_handler(void *fd_ptr)
         }
         for(i=0; i<nfds; i++) {
             int sockfd = events[i].data.fd;
-            char buffer[256];
-            // Read from the socket
-            int rv = recv(sockfd, buffer, 256, 0);
+            request_t request;
+            // Read request from the socket
+            int rv = recv(sockfd, &request, sizeof(request), 0);
             if (rv < 0) {
                 error("ERROR reading from socket\n");
             } else {
                 PRINTF("Message (%d): %s\n", epfd, buffer);
             }
+
+            int in_fd;
+            int size = fd_from_request(request, &in_fd);
+
             // Write to the socket
-            char outmsg[] = "I got your message";
-            rv = send(sockfd, outmsg, strlen(outmsg), 0);
+            rv = sendfile(sockfd, in_fd, 0, size);
 
             if(rv == -1) {
                 error("ERROR writing to socket\n");
@@ -190,20 +194,34 @@ int send_request(int destination)
     // Have to free the linked list of addrs
     freeaddrinfo(result);
 
-    // Write a message
-    char outmsg[] = "Hello world from the client!";
-    PRINTF("Sending: %s\n", outmsg);
-    n = send(sockfd, outmsg, strlen(outmsg), 0);
+    // Construct request
+    request_t request;
+    request.storage = STORAGE_MEMORY;
+    request.compression = COMPRESSION_GZIP;
+    request.size = SIZE_64;
+
+    print_request(request);
+
+    PRINTF("Sending request...\n");
+    n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
         error("ERROR writing to socket");
 
     // Read the response
-    char buffer[256];
-    memset(buffer, '\0', 256);
-    n = recv(sockfd, buffer, 255, 0);
-    if (n < 0) 
-        error("ERROR reading from socket");
+    int response_size = 0;
+    static int bufsize = 1024*1024;
+    char buffer[bufsize];
+    memset(buffer, '\0', bufsize);
+    int bytes_to_read = bufsize-1;
+    do {
+        n = recv(sockfd, buffer, bytes_to_read*sizeof(char), 0);
+        if (n < 0) 
+            error("ERROR reading from socket");
+        response_size += n;
+    } while (n == bytes_to_read);
+
     PRINTF("The response: %s\n",buffer);
+    printf("response was size %d\n", response_size);
 
     close(sockfd);
     return 0;
@@ -305,6 +323,70 @@ void benchmark() {
     printf("Requests per second: %f\n", req_per_sec);
 }
 
+
+int fd_from_request(request_t request, int* in_fd)
+{
+    char filename[1024];
+    memset(filename, '\0', 1024);
+    strcat(filename, FILE_DIR);
+    char suffix[6];
+
+    print_request(request);
+
+    // TODO: in memory vs. on disk
+
+    // Construct filename based on request options
+    switch(request.size)
+    {
+        case SIZE_64:
+            strcat(filename, "/64");
+            break;
+        case SIZE_256:
+            strcat(filename, "/256");
+            break;
+        default:
+            error("Invalid request.size!");
+            break;
+    }
+    switch(request.compression)
+    {
+        case COMPRESSION_NONE:
+            strcat(filename, "/none");
+            break;
+        case COMPRESSION_GZIP:
+            strcat(filename, "/gzip");
+            strcpy(suffix,".gz");
+            break;
+        case COMPRESSION_LZO:
+            strcat(filename, "/lzo");
+            strcpy(suffix,".lzo");
+            break;
+        default:
+            error("Invalid request.compression!");
+            break;
+    }
+
+    // Finally, the file basename
+    strcat(filename, "/aa");
+    strcat(filename, suffix);
+
+    printf("Filename: %s\n", filename);
+
+    // Open the filename, set in_fd
+    int fd = open(filename, O_RDONLY);
+    *in_fd = fd;
+
+    // Get and return the file size
+    struct stat s;
+    int rv = fstat(fd, &s);
+    if(rv <0) {
+        error("Stat of file failed.");
+    }
+    int size = s.st_size;
+    return size;
+}
+
+
 void error(const char *msg)
 {
     perror(msg);
@@ -320,6 +402,45 @@ void usage()
     printf("See SERVERS array in node.h for the list of servers.\n");
     printf("\n");
     printf("Benchmark mode chooses the first server in SERVERS by default.\n");
+    printf("\n");
+}
+
+void print_request(request_t request) {
+    printf("request size: ");
+    switch(request.size)
+    {
+        case(SIZE_64):
+            printf("64");
+            break;
+        case(SIZE_256):
+            printf("256");
+            break;
+    }
+    printf(", ");
+    printf("compression: ");
+    switch(request.compression)
+    {
+        case(COMPRESSION_NONE):
+            printf("none");
+            break;
+        case(COMPRESSION_GZIP):
+            printf("gzip");
+            break;
+        case(COMPRESSION_LZO):
+            printf("lzo");
+            break;
+    }
+    printf(", ");
+    printf("storage: ");
+    switch(request.storage)
+    {
+        case(STORAGE_DISK):
+            printf("disk");
+            break;
+        case(STORAGE_MEMORY):
+            printf("mem");
+            break;
+    }
     printf("\n");
 }
 

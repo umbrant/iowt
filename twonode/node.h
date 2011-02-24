@@ -16,6 +16,8 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
@@ -35,12 +37,12 @@ static int epfd;
 #define EPOLL_TIMEOUT -1
 
 // thread settings
-#define NUM_WORKER_THREADS 20 
+#define NUM_WORKER_THREADS 5
 
 // benchmark settings, these should be divisible
 // NUM_BENCH_REQUESTS should also be a multiple of 1000
-#define NUM_BENCH_THREADS 5
-#define NUM_BENCH_REQUESTS 100*1000
+#define NUM_BENCH_THREADS 1
+#define NUM_BENCH_REQUESTS 1*1000
 
 // Lookup table for destinations
 // Make sure to increment NUM_SERVERS appropriately
@@ -50,20 +52,28 @@ static char *SERVERS[] = {
    "10.0.0.1"
 };
 
+// Directory where test files are stored
+static char FILE_DIR[] = "/home/awang/Downloads/enwiki";
+
 // Strut and enums for defining a request
 typedef struct request { 
-    unsigned char storage; 
+    unsigned char size;
     unsigned char compression; 
+    unsigned char storage; 
 } request_t; 
 
 enum STORAGE {
     STORAGE_DISK,
-    STORAGE_MEM
+    STORAGE_MEMORY
 };
 enum COMPRESSION {
-    COMPRESSION_UNCOMPRESSSED,
-    COMPRESSION_DEFLATE,
+    COMPRESSION_NONE,
+    COMPRESSION_GZIP,
     COMPRESSION_LZO
+};
+enum SIZE {
+    SIZE_64,
+    SIZE_256
 };
 
 
@@ -76,6 +86,8 @@ int handle_io_on_socket(int fd);
 int send_request(int destination);
 void benchmark();
 
+int fd_from_request(request_t request, int* in_fd);
+void print_request(request_t request);
 void error(const char *msg);
 void usage();
 int set_nonblocking(int sockfd);
