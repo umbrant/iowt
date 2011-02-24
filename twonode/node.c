@@ -167,7 +167,7 @@ int send_request(request_t request, int destination)
     struct addrinfo *result, *rp;
 
     // Lookup server in the destination table
-    char* server = SERVERS[destination];
+    const char* server = SERVERS[destination];
 
     // Convert from human readable -> addrinfo
 
@@ -241,6 +241,9 @@ int send_request(request_t request, int destination)
 
 int main (int argc, char *argv[])
 {
+    // Read and initialize configuration settings
+    init_config();
+
 	request_t request;
 	int dest;
 
@@ -439,6 +442,8 @@ void mmap_file(char* filename, memfile_t* memfile)
     char* buffer = mmap(NULL, size, PROT_READ, 
     		MAP_PRIVATE|MAP_LOCKED, fd, 0);
     if(buffer == MAP_FAILED) {
+    	fprintf(stderr, "You might need to change the \"max locked memory\" ulimit:\n");
+    	fprintf(stderr, "    ulimit -l 1048676\n");
     	error("mmap of file failed");
     }
 
@@ -561,6 +566,46 @@ int memory_request(request_t request, memfile_t* memfile)
     return memfile->size;
 }
 
+int init_config()
+{
+    char filename[] = "iowt.cfg";
+    PRINTF("Loading config file %s...\n", filename);
+    int rv;
+    config_t config;
+    config_setting_t* config_setting;
+
+    config_init(&config);
+    if(!config_read_file(&config, filename)) {
+        printf("Error reading line %d: %s\n", config_error_line(&config),
+                config_error_text(&config));
+        exit(-1);
+    }
+    // Get FILE_DIR
+    int config_lookup_string (const config_t * config, const char * path, const char ** value);
+    rv = config_lookup_string(&config, "file_dir", &FILE_DIR);
+    PRINTF("FILE_DIR is %s\n", FILE_DIR);
+    // Get SERVERS list
+    config_setting = config_lookup (&config, "servers");
+    // Loop through once to count, malloc, loop again to populate
+    char* temp;
+    int count = -1;
+    do {
+        count++;
+        temp = (char*)config_setting_get_string_elem(config_setting, count);
+    } while(temp != NULL);
+    SERVERS = (const char**)malloc(count*sizeof(char*));
+    int i;
+    PRINTF("SERVERS list:\n");
+    for(i=0; i<count; i++) {
+        SERVERS[i] = config_setting_get_string_elem(config_setting, i);
+        PRINTF("    [%02d]: %s\n", i, SERVERS[i]);
+    }
+    NUM_SERVERS = count;
+
+    PRINTF("Done parsing config!\n");
+
+    return 0;
+}
 
 void error(const char *msg)
 {

@@ -23,6 +23,8 @@
 #include <sys/time.h>
 #include <sys/types.h> 
 
+#include <libconfig.h>
+
 #define PORT_STR "8001"
 #define PORT_INT 8001
 
@@ -50,14 +52,14 @@ static int epfd;
 
 // Lookup table for destinations
 // Make sure to increment NUM_SERVERS appropriately
-#define NUM_SERVERS 2
-static char *SERVERS[] = {
+static int NUM_SERVERS;
+static const char ** SERVERS;/*[] = {
    "127.0.0.1",
    "192.168.99.20"
-};
+};*/
 
 // Directory where test files are stored
-static char FILE_DIR[] = "/home/andrew/Downloads/enwiki";
+static const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
 
 // Set of files mmap'd into memory
 typedef struct memfile {
@@ -102,6 +104,7 @@ typedef struct benchmark {
 
 
 //int main(int argc, char *argv[]);
+int init_config();
 
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);

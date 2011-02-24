@@ -1,6 +1,6 @@
 DEBUG=-DDEBUG -g -ggdb
 
-LIBS=-lpthread
+LIBS=-lpthread -lconfig
 CFLAGS=-Wall -O2
 
 node: node.h node.c
