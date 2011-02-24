@@ -1,5 +1,5 @@
 file_dir = "/home/awang/Downloads/enwiki";
 servers = (
 		"127.0.0.1",
-		"10.0.0.1",
+		"10.0.0.1"
 		);
