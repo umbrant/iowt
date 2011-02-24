@@ -53,7 +53,7 @@ static int epfd;
 #define NUM_SERVERS 2
 static char *SERVERS[] = {
    "127.0.0.1",
-   "10.0.0.1"
+   "192.168.99.20"
 };
 
 // Directory where test files are stored
