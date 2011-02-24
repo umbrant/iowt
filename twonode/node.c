@@ -7,7 +7,7 @@ void* manager_main(void *threadid) {
     int i;
 
 	// Initialize memfiles, pinned into RAM
-	lock_files_in_memory();
+	init_mmap_files();
 
     // Initialize socket
     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -130,38 +130,17 @@ void* request_handler(void *fd_ptr)
             if (rv < 0) {
                 error("ERROR reading from socket\n");
             }
-
-			rv = parse_and_handle_request(request, sockfd);
+        	// Get file descriptor of requested file
+        	int in_fd;
+        	int size = fd_from_request(request, &in_fd);
+        	// zero-copy I/O send to the socket
+        	rv = sendfile(sockfd, in_fd, 0, size);
+        	if(rv == -1) {
+            	error("ERROR writing to socket\n");
+        	}
         	close(sockfd);
         }
     }
-}
-
-
-// Parses the request and decides whether to serve the request
-// from disk or from memory (two different mechanisms)
-int parse_and_handle_request(request_t request, int sockfd)
-{
-	// Disk request
-	if(request.storage == STORAGE_DISK) {
-        int in_fd;
-        int size = fd_from_request(request, &in_fd);
-
-        // Write to the socket
-        int rv = sendfile(sockfd, in_fd, 0, size);
-        if(rv == -1) {
-            error("ERROR writing to socket\n");
-        }
-	}
-	// Memory request
-	else if(request.storage == STORAGE_MEMORY) {
-
-	}
-	else {
-		error("Invalid request.storage value!");
-	}
-
-	return 0;
 }
 
 
@@ -347,7 +326,7 @@ void benchmark() {
 }
 
 
-void lock_files_in_memory()
+void init_mmap_files()
 {
     char filename[1024];
     memset(filename, '\0', 1024);
@@ -355,28 +334,28 @@ void lock_files_in_memory()
 
 	// Lock the 64M files
 	strcat(filename, "/64/raw/ap");
-	init_memfile(filename, &memfiles.raw_64);
+	mmap_file(filename, &mmapfiles.raw_64);
     memset(filename, '\0', 1024);
 	strcat(filename, "/64/gzip/ap.gz");
-	init_memfile(filename, &memfiles.gzip_64);
+	mmap_file(filename, &mmapfiles.gzip_64);
     memset(filename, '\0', 1024);
 	strcat(filename, "/64/lzo/ap.lzo");
-	init_memfile(filename, &memfiles.lzo_64);
+	mmap_file(filename, &mmapfiles.lzo_64);
     memset(filename, '\0', 1024);
 
 	// Lock the 256M files
 	strcat(filename, "/256/raw/ap");
-	init_memfile(filename, &memfiles.raw_256);
+	mmap_file(filename, &mmapfiles.raw_256);
     memset(filename, '\0', 1024);
 	strcat(filename, "/256/gzip/ap.gz");
-	init_memfile(filename, &memfiles.gzip_256);
+	mmap_file(filename, &mmapfiles.gzip_256);
     memset(filename, '\0', 1024);
 	strcat(filename, "/256/lzo/ap.lzo");
-	init_memfile(filename, &memfiles.lzo_256);
+	mmap_file(filename, &mmapfiles.lzo_256);
     memset(filename, '\0', 1024);
 }
 
-void init_memfile(char* filename, memfile_t* memfile)
+void mmap_file(char* filename, int* mmapfd)
 {
 	// Open file
 	int fd = open(filename, O_RDONLY);
@@ -385,20 +364,43 @@ void init_memfile(char* filename, memfile_t* memfile)
     if(rv <0) {
         error("Stat of file failed.");
     }
-    // Read into memfile buffer
     int size = s.st_size;
+
+    // mmap into memory, MAP_LOCKED effectively mlock's the pages
+    char* buffer = (char*)malloc(size*sizeof(char));
+    char* addr = mmap(buffer, size, PROT_READ, 
+    		MAP_PRIVATE|MAP_LOCKED, *mmapfd, 0);
+    if(addr == MAP_FAILED) {
+    	error("mmap of file failed!");
+    }
+
+    // Do we need to read to page it all in?
+    // TODO: this is skipped for now, might need to
+    /*
 	memfile->size = size;
 	memfile->buffer = (char*)malloc(size*sizeof(char));
 	rv = read(fd, memfile->buffer, size);
 	if(rv != size) {
 		printf("Mismatch between size %d and read %d\n", size, rv);
 	}
-	// Lock the pages
-	mlock(memfile->buffer, memfile->size);
+	*/
 }
 
 
 int fd_from_request(request_t request, int* in_fd)
+{
+	if(request.storage == STORAGE_DISK) {
+		return disk_request(request, in_fd);
+	}
+	else if(request.storage == STORAGE_MEMORY) {
+		return memory_request(request, in_fd);
+	} else {
+		error("Invalid request.storage type");
+	}
+	return -1; // Should never hit
+}
+
+int disk_request(request_t request, int* in_fd)
 {
     char filename[1024];
     memset(filename, '\0', 1024);
@@ -439,7 +441,7 @@ int fd_from_request(request_t request, int* in_fd)
     }
 
     // Finally, the file basename
-    strcat(filename, "/ab");
+    strcat(filename, "/aa");
     strcat(filename, suffix);
 
     PRINTF("Filename: %s\n", filename);
@@ -455,6 +457,53 @@ int fd_from_request(request_t request, int* in_fd)
         error("Stat of file failed.");
     }
     int size = s.st_size;
+    PRINTF("Size of file: %d\n", size);
+
+    return size;
+}
+
+int memory_request(request_t request, int* in_fd)
+{
+	int s = request.size;
+	int c = request.compression;
+	if(c == COMPRESSION_NONE) {
+		if(s == SIZE_64) {
+			*in_fd = mmapfiles.raw_64;
+		}
+		if(s == SIZE_256) {
+			*in_fd = mmapfiles.raw_256;
+		}
+	}
+	else if(c == COMPRESSION_GZIP) {
+		if(s == SIZE_64) {
+			*in_fd = mmapfiles.gzip_64;
+		}
+		if(s == SIZE_256) {
+			*in_fd = mmapfiles.gzip_256;
+		}
+	}
+	else if(c == COMPRESSION_LZO) {
+		if(s == SIZE_64) {
+			*in_fd = mmapfiles.lzo_64;
+		}
+		if(s == SIZE_256) {
+			*in_fd = mmapfiles.lzo_256;
+		}
+	}
+	else {
+		error("Invalid request.compression");
+	}
+	if(s != SIZE_64 && s != SIZE_256) {
+		error("Invalid request.size");
+	}
+
+    // Get and return the file size
+    struct stat st;
+    int rv = fstat(*in_fd, &st);
+    if(rv <0) {
+        error("Stat of file failed.");
+    }
+    int size = st.st_size;
     PRINTF("Size of file: %d\n", size);
 
     return size;

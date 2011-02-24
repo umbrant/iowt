@@ -59,19 +59,15 @@ static char *SERVERS[] = {
 // Directory where test files are stored
 static char FILE_DIR[] = "/home/andrew/Downloads/enwiki";
 
-// Set of files mlock'd into memory
-typedef struct memfile {
-	char* buffer;
-	size_t size;
-} memfile_t;
+// Set of files mmap'd into memory
 struct locked_memfiles {
-	memfile_t raw_64;
-	memfile_t gzip_64;
-	memfile_t lzo_64;
-	memfile_t raw_256;
-	memfile_t gzip_256;
-	memfile_t lzo_256;
-} memfiles;
+	int raw_64;
+	int gzip_64;
+	int lzo_64;
+	int raw_256;
+	int gzip_256;
+	int lzo_256;
+} mmapfiles;
 
 // Strut and enums for defining a request
 typedef struct request { 
@@ -104,10 +100,13 @@ int handle_io_on_socket(int fd);
 int send_request(int destination);
 void benchmark();
 
-void lock_files_in_memory();
-void init_memfile(char* filename, memfile_t* memfile);
-int parse_and_handle_request(request_t request, int sockfd);
+void init_mmap_files();
+void mmap_file(char* filename, int* mmapfd);
+
 int fd_from_request(request_t request, int* in_fd);
+int disk_request(request_t request, int* in_fd);
+int memory_request(request_t request, int* in_fd);
+
 void print_request(request_t request);
 void error(const char *msg);
 void usage();
