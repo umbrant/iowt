@@ -210,12 +210,12 @@ int send_request(int destination)
 
     // Read the response
     int response_size = 0;
-    static int bufsize = 512;
+    static int bufsize = 1024*10;
     char buffer[bufsize];
     memset(buffer, '\0', bufsize);
     int bytes_to_read = bufsize;
     do {
-        n = recv(sockfd, buffer, bytes_to_read*sizeof(char), 0);
+        n = recv(sockfd, buffer, bytes_to_read*sizeof(char), MSG_WAITALL);
         if (n < 0) 
             error("ERROR reading from socket");
         response_size += n;
