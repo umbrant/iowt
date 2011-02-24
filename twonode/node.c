@@ -113,7 +113,8 @@ void* request_handler(void *fd_ptr)
         int nfds = epoll_wait(epfd, events, MAX_EVENTS, EPOLL_TIMEOUT);
         if(nfds == -1) {
             perror("epoll_wait");
-            exit(-1);
+            continue;
+            //exit(-1);
         }
         for(i=0; i<nfds; i++) {
             int sockfd = events[i].data.fd;
@@ -122,8 +123,6 @@ void* request_handler(void *fd_ptr)
             int rv = recv(sockfd, &request, sizeof(request), 0);
             if (rv < 0) {
                 error("ERROR reading from socket\n");
-            } else {
-                PRINTF("Message (%d): %s\n", epfd, buffer);
             }
 
             int in_fd;
@@ -220,8 +219,7 @@ int send_request(int destination)
         response_size += n;
     } while (n == bytes_to_read);
 
-    PRINTF("The response: %s\n",buffer);
-    printf("response was size %d\n", response_size);
+    PRINTF("response was size %d\n", response_size);
 
     close(sockfd);
     return 0;
@@ -370,7 +368,7 @@ int fd_from_request(request_t request, int* in_fd)
     strcat(filename, "/aa");
     strcat(filename, suffix);
 
-    printf("Filename: %s\n", filename);
+    PRINTF("Filename: %s\n", filename);
 
     // Open the filename, set in_fd
     int fd = open(filename, O_RDONLY);
