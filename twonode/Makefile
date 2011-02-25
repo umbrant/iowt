@@ -1,10 +1,11 @@
 DEBUG=-DDEBUG -g -ggdb
 
-LIBS=-lpthread -lconfig
+CC=gcc
+LIBS=-lpthread -lconfig -L/usr/lib
 CFLAGS=-Wall -O2
 
 node: node.h node.c
-	gcc -o node node.c ${LIBS} ${CFLAGS} ${DEBUG}
+	${CC} -o node node.c ${LIBS} ${CFLAGS} ${DEBUG}
 
 clean:
 	rm -f node
