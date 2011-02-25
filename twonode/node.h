@@ -35,7 +35,7 @@
 	#define PRINTF(...)
 #endif
 
-static int epfd;
+int epfd;
 
 // epoll settings
 #define EPOLL_QUEUE_LEN 10
@@ -52,14 +52,14 @@ static int epfd;
 
 // Lookup table for destinations
 // Make sure to increment NUM_SERVERS appropriately
-static int NUM_SERVERS;
-static const char ** SERVERS;/*[] = {
+int NUM_SERVERS;
+const char ** SERVERS;/*[] = {
    "127.0.0.1",
    "192.168.99.20"
 };*/
 
 // Directory where test files are stored
-static const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
+const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
 
 // Set of files mmap'd into memory
 typedef struct memfile {
@@ -103,24 +103,25 @@ typedef struct benchmark {
 } benchmark_t;
 
 
-//int main(int argc, char *argv[]);
-int init_config();
-
+// Main and server functions
+int main(int argc, char *argv[]);
 void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
-int handle_io_on_socket(int fd);
-int send_request(request_t request, int destination);
-void benchmark(request_t request, int destination);
-
-void init_mmap_files();
-void mmap_file(char* filename, memfile_t* memfile);
-
-int make_request(int argc, char* argv[], request_t* request, int* destination);
 int fd_from_request(request_t request, int* in_fd);
 int disk_request(request_t request, int* in_fd);
 int memory_request(request_t request, memfile_t* memfile);
+void init_mmap_files();
+void mmap_file(char* filename, memfile_t* memfile);
 
+// Client and benchmark functions
+int send_request(request_t request, int destination);
+void benchmark(request_t request, int destination);
+void* benchmark_worker(void* num_ptr);
+
+// More generic utility functions
+int make_request(int argc, char* argv[], request_t* request, int* destination);
 void print_request(request_t request);
+int init_config();
 void error(const char *msg);
 void usage();
 int set_nonblocking(int sockfd);
