@@ -618,8 +618,11 @@ void usage()
 {
     printf("node <server/client/benchmark> [destination]\n");
     printf("\n");
-    printf("Must provide an integer destination when running in client mode.\n");
-    printf("See SERVERS array in node.h for the list of servers.\n");
+    printf("node client <destination> <size> <compression> <storage>\n");
+    printf("destination: integer index of server in SERVERS (see iowt.cfg)\n");
+    printf("size: 64 or 256\n");
+    printf("compression: none or gzip or lzo\n");
+    printf("storage: memory or disk\n");
     printf("\n");
     printf("Benchmark mode chooses the first server in SERVERS by default.\n");
     printf("\n");
