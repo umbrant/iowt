@@ -2,8 +2,8 @@ DEBUG=-DDEBUG -g -ggdb
 #OPTS=-O2
 
 CC=gcc
-LIBS=-lpthread `pkg-config --libs libconfig zlib`
-CFLAGS=${OPTS} ${DEBUG} -Wall `pkg-config --cflags libconfig zlib`
+LIBS=-lpthread -lconfig -lz
+CFLAGS=${OPTS} ${DEBUG} -Wall
 
 node: server.o client.o util.o
 	${CC} -o node server.o client.o util.o ${LIBS} ${CFLAGS}
