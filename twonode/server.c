@@ -86,7 +86,7 @@ void* manager_main(void *threadid) {
     }
 
     // Set up epoll to watch the socket file descriptor
-    epfd = epoll_create(EPOLL_QUEUE_LEN);
+    int epfd = epoll_create(EPOLL_QUEUE_LEN);
     if(epfd < 0) {
         error("ERROR creating epoll");
     }
@@ -363,7 +363,6 @@ void mmap_file(char* filename, memfile_t* memfile)
     int size = s.st_size;
 
     // mmap into memory, MAP_LOCKED effectively mlock's the pages
-    //char* buffer = (char*)malloc(size*sizeof(char));
     char* buffer = mmap(NULL, size, PROT_READ, 
     		MAP_PRIVATE|MAP_LOCKED, fd, 0);
     if(buffer == MAP_FAILED) {

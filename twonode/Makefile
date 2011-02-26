@@ -1,10 +1,10 @@
 DEBUG=-DDEBUG -g -ggdb
 
 CC=gcc
-LIBS=-lpthread `pkg-config --libs libconfig`
-CFLAGS=-Wall -O2 `pkg-config --cflags libconfig`
+LIBS=-lpthread `pkg-config --libs libconfig zlib`
+CFLAGS=-Wall -O2 `pkg-config --cflags libconfig zlib`
 
-node: node.h server.o client.o util.o
+node: server.o client.o util.o
 	${CC} -o node server.o client.o util.o ${LIBS} ${CFLAGS} ${DEBUG}
 
 server.o: server.c node.h

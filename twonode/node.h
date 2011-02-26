@@ -25,6 +25,8 @@
 
 #include <libconfig.h>
 
+#include "zlib.h"
+
 #define PORT_STR "8001"
 #define PORT_INT 8001
 
@@ -35,15 +37,16 @@
 	#define PRINTF(...)
 #endif
 
-int epfd;
 
-// epoll settings
+// Server settings
 #define EPOLL_QUEUE_LEN 10
 #define MAX_EVENTS 10
 #define EPOLL_TIMEOUT -1
-
-// thread settings
 #define NUM_WORKER_THREADS 5
+
+
+// Client settings
+#define READ_CHUNKSIZE 1024*16
 
 // benchmark settings, these should be divisible
 // NUM_BENCH_REQUESTS should also be a multiple of 1000
@@ -115,6 +118,10 @@ void mmap_file(char* filename, memfile_t* memfile);
 
 // Client and benchmark functions
 int send_request(request_t request, int destination);
+int read_uncompressed(int sockfd, char* buffer, int bufsize);
+int read_gzip(int sockfd, char* buffer, int bufsize);
+int read_lzo(int sockfd, char* buffer, int bufsize);
+long get_time_usecs();
 void benchmark(request_t request, int destination);
 void* benchmark_worker(void* num_ptr);
 
