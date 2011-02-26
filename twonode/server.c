@@ -168,6 +168,7 @@ void* request_handler(void *fd_ptr)
             continue;
             //exit(-1);
         }
+        int size;
         for(i=0; i<nfds; i++) {
             int sockfd = events[i].data.fd;
             request_t request;
@@ -179,7 +180,7 @@ void* request_handler(void *fd_ptr)
             if(request.storage == STORAGE_DISK) {
         		// Get file descriptor of requested file
         		int in_fd;
-        		int size = disk_request(request, &in_fd);
+        		size = disk_request(request, &in_fd);
         		// zero-copy I/O send to the socket
         		rv = sendfile(sockfd, in_fd, 0, size);
         		if(rv == -1) {
@@ -188,7 +189,7 @@ void* request_handler(void *fd_ptr)
         	}
         	else if(request.storage == STORAGE_MEMORY) {
 				memfile_t memfile;
-				int size = memory_request(request, &memfile);
+				size = memory_request(request, &memfile);
 				// send it normally to the socket
 				rv = send(sockfd, memfile.buffer, size, 0);
 				if(rv == -1) {
@@ -198,6 +199,7 @@ void* request_handler(void *fd_ptr)
         	else {
         		error("Invalid request.storage");
         	}
+            PRINTF("Size of file: %d\n", size);
         	close(sockfd);
         }
     }
@@ -265,7 +267,6 @@ int disk_request(request_t request, int* in_fd)
         error("Stat of file failed.");
     }
     int size = s.st_size;
-    PRINTF("Size of file: %d\n", size);
 
     return size;
 }

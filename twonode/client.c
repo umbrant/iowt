@@ -48,8 +48,16 @@ int send_request(request_t request, int destination)
         return -1;
     }
 
-    int bufsize = request.size * (1<<20);
-    char *buffer = (char*)calloc(1, bufsize);
+    int megabytes = 0;
+    if(request.size == SIZE_64) {
+        megabytes = 64;
+    }
+    else if(request.size == SIZE_256) {
+        megabytes = 256;
+    }
+    int bufsize = megabytes * (1<<20);
+    printf("bufsize: %d\n", bufsize);
+    char * buffer = (char*)calloc(1, bufsize);
 
     start_usecs = get_time_usecs();
 
@@ -74,6 +82,7 @@ int send_request(request_t request, int destination)
             bytes_read = read_uncompressed(sockfd, buffer, bufsize);
             break;
         case COMPRESSION_GZIP:
+            bytes_read = read_gzip(sockfd, buffer, bufsize);
             break;
         case COMPRESSION_LZO:
             break;
@@ -93,6 +102,8 @@ int send_request(request_t request, int destination)
 /* 
  * We can read directly into the final output buffer, since
  * no decompression needs to be done.
+ *
+ * Have to call recv multiple times, since it will return early
  */
 int read_uncompressed(int sockfd, char* buffer, int bufsize)
 {
@@ -111,57 +122,28 @@ int read_uncompressed(int sockfd, char* buffer, int bufsize)
 
 
 /*
- * gzip is a streaming decompression protocol, so use a READ_CHUNKSIZE read buffer,
- * decompress it to the final output buffer, and then repeat.
+ * gzip decompression, courtesy of zlib.
+ * this code so much shorter than the uncompressed case even, gotta love
+ * zlib doing buffering internally.
  *
- * This will probably need to be optimized, to get the network streaming and gzip
- * streaming working together without blocking each other. Maybe spawn another thread?
+ * I did check the resultant file too, it's correct.
  */
 int read_gzip(int sockfd, char* buffer, int bufsize)
 {
-    int rv = 0;
     int bytes_read = 0;
-    int bytes_deflated = 0;
-    int bytes_to_read = READ_CHUNKSIZE;
-    char read_buffer[READ_CHUNKSIZE];
+    gzFile gfile = gzdopen(sockfd, "r");
+    bytes_read = gzread(gfile, buffer, bufsize);
 
-    z_stream strm;
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    rv = inflateInit(&strm);
-    if(rv != Z_OK) {
-        error("zlib deflateInit");
+    // output this somewhere to check
+    /*
+    printf("writing check.out file...\n");
+    FILE* outfile = fopen("check.out", "w");
+    if(outfile == NULL) {
+        error("fopen error");
     }
-
-    int n = 0;
-    do {
-        // Read bytes_to_read bytes into read_buffer
-        n = recv(sockfd, read_buffer, bytes_to_read*sizeof(char), MSG_WAITALL);
-        if(n < 0)
-            error("ERROR reading from socket");
-        // Point zlib at the read and write buffers, with right sizes
-        strm.next_in = (unsigned char*)read_buffer;
-        strm.avail_in = n;
-        strm.next_out = (unsigned char*)(buffer+bytes_read);
-        strm.avail_out = bufsize - bytes_read;
-        // Inflate to the output buffer
-        rv = inflateEnd(&strm);
-        if(rv == Z_STREAM_ERROR) {
-            error("zlib stream error");
-        }
-        
-        bytes_deflated += READ_CHUNKSIZE - strm.avail_out;
-        bytes_read += n;
-    } while(n == bytes_to_read && bytes_read < bufsize);
-
-    // clean up the stream
-    inflateEnd(&strm);
-    if(bytes_read != bytes_deflated) {
-        printf("MISMATCH: Read: %d Deflated: %d\n", bytes_read, bytes_deflated);
-    }
+    fwrite(buffer, bytes_read, 1, outfile);
+    fclose(outfile);
+    */
 
     return bytes_read;
 }
