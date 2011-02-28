@@ -58,42 +58,42 @@ int make_request(int argc, char* argv[], request_t* request, int* destination) {
 
 
 void print_request(request_t request) {
-    printf("request size: ");
+    PRINTF("request size: ");
     switch(request.size)
     {
         case(SIZE_64):
-            printf("64");
+            PRINTF("64");
             break;
         case(SIZE_256):
-            printf("256");
+            PRINTF("256");
             break;
     }
-    printf(", ");
-    printf("compression: ");
+    PRINTF(", ");
+    PRINTF("compression: ");
     switch(request.compression)
     {
         case(COMPRESSION_NONE):
-            printf("none");
+            PRINTF("none");
             break;
         case(COMPRESSION_GZIP):
-            printf("gzip");
+            PRINTF("gzip");
             break;
         case(COMPRESSION_LZO):
-            printf("lzo");
+            PRINTF("lzo");
             break;
     }
-    printf(", ");
-    printf("storage: ");
+    PRINTF(", ");
+    PRINTF("storage: ");
     switch(request.storage)
     {
         case(STORAGE_DISK):
-            printf("disk");
+            PRINTF("disk");
             break;
         case(STORAGE_MEMORY):
-            printf("mem");
+            PRINTF("mem");
             break;
     }
-    printf("\n");
+    PRINTF("\n");
 }
 
 

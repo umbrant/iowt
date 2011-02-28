@@ -3,8 +3,16 @@
 
 int main (int argc, char *argv[])
 {
+    int rv;
     // Read and initialize configuration settings
     init_config();
+
+    // Init the mutexs used for determining filename
+    pthread_mutex_init(&filecount_64_mutex, NULL);
+    pthread_mutex_init(&filecount_256_mutex, NULL);
+    // Init their counters too
+    filecount_64 = 'a';
+    filecount_256 = 'a';
 
 	request_t request;
 	int dest;
@@ -17,7 +25,7 @@ int main (int argc, char *argv[])
     if(strcmp(argv[1],"server") == 0) {
         pthread_t manager;
         // Create manager thread, which spans more handlers
-        int rv = pthread_create(&manager, NULL, manager_main, NULL);
+        rv = pthread_create(&manager, NULL, manager_main, NULL);
         if(rv) {
             printf("Error, could not start server manager thread.\n");
             exit(-1);
@@ -34,13 +42,9 @@ int main (int argc, char *argv[])
 		make_request(argc, argv, &request, &dest);
         benchmark(request, dest);
     }
-    // Else just print out the args...debug
+    // Default to showing usage()
     else {
-        int i;
-        for(i=0; i<argc; i++) {
-            printf("%s ", argv[i]);
-        }
-        printf("\n");
+        usage();
     }
     pthread_exit(NULL);
 }
@@ -168,7 +172,7 @@ void* request_handler(void *fd_ptr)
             continue;
             //exit(-1);
         }
-        int size;
+        int size = -1;
         for(i=0; i<nfds; i++) {
             int sockfd = events[i].data.fd;
             request_t request;
@@ -210,49 +214,9 @@ void* request_handler(void *fd_ptr)
 
 int disk_request(request_t request, int* in_fd)
 {
-    char filename[1024];
-    memset(filename, '\0', 1024);
-    char suffix[6];
-    memset(suffix, '\0', 6);
 
-    strcat(filename, FILE_DIR);
-
-    print_request(request);
-
-    // Construct filename based on request options
-    switch(request.size)
-    {
-        case SIZE_64:
-            strcat(filename, "/64");
-            break;
-        case SIZE_256:
-            strcat(filename, "/256");
-            break;
-        default:
-            error("Invalid request.size!");
-            break;
-    }
-    switch(request.compression)
-    {
-        case COMPRESSION_NONE:
-            strcat(filename, "/none");
-            break;
-        case COMPRESSION_GZIP:
-            strcat(filename, "/gzip");
-            strcpy(suffix,".gz");
-            break;
-        case COMPRESSION_LZO:
-            strcat(filename, "/lzo");
-            strcpy(suffix,".lzo");
-            break;
-        default:
-            error("Invalid request.compression!");
-            break;
-    }
-
-    // Finally, the file basename
-    strcat(filename, "/aa");
-    strcat(filename, suffix);
+    char* filename = (char*) calloc(1024, sizeof(char));
+    get_request_filename(request, filename);
 
     PRINTF("Filename: %s\n", filename);
 
@@ -267,6 +231,8 @@ int disk_request(request_t request, int* in_fd)
         error("Stat of file failed.");
     }
     int size = s.st_size;
+
+    free(filename);
 
     return size;
 }
@@ -314,6 +280,78 @@ int memory_request(request_t request, memfile_t* memfile)
 }
 
 
+int get_request_filename(request_t request, char* filename)
+{
+    char suffix[6];
+    memset(suffix, '\0', 6);
+
+    strcat(filename, FILE_DIR);
+
+    print_request(request);
+
+    // Construct filename based on request options
+    switch(request.size)
+    {
+        case SIZE_64:
+            strcat(filename, "/64");
+            break;
+        case SIZE_256:
+            strcat(filename, "/256");
+            break;
+        default:
+            error("Invalid request.size!");
+            return -1;
+            break;
+    }
+    switch(request.compression)
+    {
+        case COMPRESSION_NONE:
+            strcat(filename, "/none");
+            break;
+        case COMPRESSION_GZIP:
+            strcat(filename, "/gzip");
+            strcpy(suffix,".gz");
+            break;
+        case COMPRESSION_LZO:
+            strcat(filename, "/lzo");
+            strcpy(suffix,".lzo");
+            break;
+        default:
+            error("Invalid request.compression!");
+            return -1;
+            break;
+    }
+
+    // Finally, the file basename
+    strcat(filename, "/a");
+    char c;
+    if(request.size == SIZE_64) {
+        pthread_mutex_lock(&filecount_64_mutex);
+        c = filecount_64;
+        if(filecount_64 == 'q') {
+            filecount_64 = 'a';
+        } else {
+            filecount_64++;
+        }
+        pthread_mutex_unlock(&filecount_64_mutex);
+    } else if(request.size == SIZE_256) {
+        pthread_mutex_lock(&filecount_256_mutex);
+        c = filecount_256;
+        if(filecount_256 == 'k') {
+            filecount_256 = 'a';
+        } else {
+            filecount_256++;
+        }
+        pthread_mutex_unlock(&filecount_256_mutex);
+    }
+
+    strncat(filename, &c, 1);
+    strcat(filename, suffix);
+
+    return 0;
+}
+
+
 void init_mmap_files()
 {
     char filename[1024];
@@ -321,15 +359,15 @@ void init_mmap_files()
 
 	// Lock the 64M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/none/ap");
+	strcat(filename, "/64/none/ar");
 	mmap_file(filename, &mmapfiles.raw_64);
 	
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/gzip/ap.gz");
+	strcat(filename, "/64/gzip/ar.gz");
 	mmap_file(filename, &mmapfiles.gzip_64);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/lzo/ap.lzo");
+	strcat(filename, "/64/lzo/ar.lzo");
 	mmap_file(filename, &mmapfiles.lzo_64);
 
 	// Lock the 256M files

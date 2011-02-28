@@ -27,6 +27,7 @@
 #include <libconfig.h>
 
 #include "zlib.h"
+#include <lzo/lzo1x.h>
 
 #define PORT_STR "8001"
 #define PORT_INT 8001
@@ -106,6 +107,12 @@ typedef struct benchmark {
 	int iterations;
 } benchmark_t;
 
+// I should make one count per permutation of request, but I'm lazy and that
+// is a lot of typing and hassle for something that is not going to bottleneck.
+pthread_mutex_t filecount_64_mutex;
+pthread_mutex_t filecount_256_mutex;
+char filecount_64;
+char filecount_256;
 
 // Main and server functions
 int main(int argc, char *argv[]);
@@ -114,6 +121,8 @@ void* request_handler(void *fd_ptr);
 int fd_from_request(request_t request, int* in_fd);
 int disk_request(request_t request, int* in_fd);
 int memory_request(request_t request, memfile_t* memfile);
+int get_request_filename(request_t request, char* filename);
+void init_filenames();
 void init_mmap_files();
 void mmap_file(char* filename, memfile_t* memfile);
 
