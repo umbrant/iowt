@@ -2,10 +2,11 @@ iowt
 
 I/O workload tester for different numbers of nodes and situations.
 
-
 twonode
 
-Base case. Tests local vs. remote, memory vs. disk
+Dependencies: libconfig, zlib, lzo
+
+Base case. Tests local vs. remote, memory vs. disk, uncompressed vs. gzip vs. lzo
 The server has to be run with a modified ulimit for "max locked memory", since it has to mmap and pin a bunch of files. This can be achieved with something like the following:
 
 sudo -s
