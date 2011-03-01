@@ -222,6 +222,7 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
     printf("\n");
 
+    srandom(time(NULL));
     start_usec = get_time_usecs();
 
     for(i=0; i<num_threads; i++) {
