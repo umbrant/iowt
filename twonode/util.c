@@ -1,6 +1,61 @@
 #include "node.h"
 
 
+int main (int argc, char *argv[])
+{
+    int rv;
+    // Read and initialize configuration settings
+    init_config();
+
+    // Init the mutexs used for determining filename
+    pthread_mutex_init(&filecount_64_mutex, NULL);
+    pthread_mutex_init(&filecount_256_mutex, NULL);
+    // Init their counters too
+    filecount_64 = 'a';
+    filecount_256 = 'a';
+
+	request_t request;
+	int dest;
+
+    if(argc < 3) {
+        usage();
+        exit(1);
+    }
+    // Server
+    if(strcmp(argv[1],"server") == 0) {
+        NUM_WORKER_THREADS = atoi(argv[2]);
+        pthread_t manager;
+        // Create manager thread, which spans more handlers
+        rv = pthread_create(&manager, NULL, manager_main, NULL);
+        if(rv) {
+            printf("Error, could not start server manager thread.\n");
+            exit(-1);
+        }
+        pthread_join(manager, NULL);
+    }
+    // Client
+    else if(strcmp(argv[1],"client") == 0) {
+		make_request(argc, argv, &request, &dest);
+        send_request(request, dest);
+    }
+    // Benchmark
+    else if(strcmp(argv[1], "benchmark") == 0) {
+        if(argc < 8) {
+            usage();
+        } else {
+		    make_request(argc, argv, &request, &dest);
+            int num_requests = atoi(argv[6]);
+            int num_threads = atoi(argv[7]);
+            benchmark(request, dest, num_requests, num_threads);
+        }
+    }
+    // Default to showing usage()
+    else {
+        usage();
+    }
+    pthread_exit(NULL);
+}
+
 
 int make_request(int argc, char* argv[], request_t* request, int* destination) {
     int dest, size, compression, storage;
@@ -58,42 +113,45 @@ int make_request(int argc, char* argv[], request_t* request, int* destination) {
 
 
 void print_request(request_t request) {
-    PRINTF("request size: ");
+    char request_str[1024];
+    memset(request_str, '\0', 1024);
+
+    strcat(request_str, "request size: ");
     switch(request.size)
     {
         case(SIZE_64):
-            PRINTF("64");
+            strcat(request_str, "64");
             break;
         case(SIZE_256):
-            PRINTF("256");
+            strcat(request_str, "256");
             break;
     }
-    PRINTF(", ");
-    PRINTF("compression: ");
+    strcat(request_str, ", ");
+    strcat(request_str, "compression: ");
     switch(request.compression)
     {
         case(COMPRESSION_NONE):
-            PRINTF("none");
+            strcat(request_str, "none");
             break;
         case(COMPRESSION_GZIP):
-            PRINTF("gzip");
+            strcat(request_str, "gzip");
             break;
         case(COMPRESSION_LZO):
-            PRINTF("lzo");
+            strcat(request_str, "lzo");
             break;
     }
-    PRINTF(", ");
-    PRINTF("storage: ");
+    strcat(request_str, ", ");
+    strcat(request_str, "storage: ");
     switch(request.storage)
     {
         case(STORAGE_DISK):
-            PRINTF("disk");
+            strcat(request_str, "disk");
             break;
         case(STORAGE_MEMORY):
-            PRINTF("mem");
+            strcat(request_str, "mem");
             break;
     }
-    PRINTF("\n");
+    printf("%s\n", request_str);
 }
 
 
@@ -150,12 +208,16 @@ void usage()
 {
     printf("node <server/client/benchmark> [destination]\n");
     printf("\n");
+    printf("node server <num_worker_threads>\n");
+    printf("\n");
     printf("node client <destination> <size> <compression> <storage>\n");
     printf("destination: integer index of server in SERVERS (see iowt.cfg)\n");
     printf("size: 64 or 256\n");
     printf("compression: none or gzip or lzo\n");
     printf("storage: memory or disk\n");
     printf("\n");
+    printf("node benchmark <dest> <size> <compress> <storage> <requests> <threads>\n");
+    printf("Benchmark mode takes the same arguments as client, and also the desired number of requests and threads to use.\n");
     printf("Benchmark mode chooses the first server in SERVERS by default.\n");
     printf("\n");
 }

@@ -1,55 +1,6 @@
 #include "node.h"
 
 
-int main (int argc, char *argv[])
-{
-    int rv;
-    // Read and initialize configuration settings
-    init_config();
-
-    // Init the mutexs used for determining filename
-    pthread_mutex_init(&filecount_64_mutex, NULL);
-    pthread_mutex_init(&filecount_256_mutex, NULL);
-    // Init their counters too
-    filecount_64 = 'a';
-    filecount_256 = 'a';
-
-	request_t request;
-	int dest;
-
-    if(argc < 2) {
-        usage();
-        exit(1);
-    }
-    // Server
-    if(strcmp(argv[1],"server") == 0) {
-        pthread_t manager;
-        // Create manager thread, which spans more handlers
-        rv = pthread_create(&manager, NULL, manager_main, NULL);
-        if(rv) {
-            printf("Error, could not start server manager thread.\n");
-            exit(-1);
-        }
-        pthread_join(manager, NULL);
-    }
-    // Client
-    else if(strcmp(argv[1],"client") == 0) {
-		make_request(argc, argv, &request, &dest);
-        send_request(request, dest);
-    }
-    // Benchmark
-    else if(strcmp(argv[1], "benchmark") == 0) {
-		make_request(argc, argv, &request, &dest);
-        benchmark(request, dest);
-    }
-    // Default to showing usage()
-    else {
-        usage();
-    }
-    pthread_exit(NULL);
-}
-
-
 void* manager_main(void *threadid) {
 
     int listen_sock;
@@ -181,6 +132,7 @@ void* request_handler(void *fd_ptr)
             if (rv < 0) {
                 error("ERROR reading from socket\n");
             }
+            print_request(request);
             if(request.storage == STORAGE_DISK) {
         		// Get file descriptor of requested file
         		int in_fd;
@@ -214,7 +166,6 @@ void* request_handler(void *fd_ptr)
 
 int disk_request(request_t request, int* in_fd)
 {
-
     char* filename = (char*) calloc(1024, sizeof(char));
     get_request_filename(request, filename);
 
@@ -240,8 +191,6 @@ int disk_request(request_t request, int* in_fd)
 
 int memory_request(request_t request, memfile_t* memfile)
 {
-    print_request(request);
-
 	int s = request.size;
 	int c = request.compression;
 	if(c == COMPRESSION_NONE) {
@@ -286,8 +235,6 @@ int get_request_filename(request_t request, char* filename)
     memset(suffix, '\0', 6);
 
     strcat(filename, FILE_DIR);
-
-    print_request(request);
 
     // Construct filename based on request options
     switch(request.size)

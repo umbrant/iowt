@@ -68,7 +68,7 @@ int send_request(request_t request, int destination)
     // Have to free the linked list of addrs
     freeaddrinfo(result);
 
-    print_request(request);
+    //print_request(request);
     PRINTF("Sending request...");
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
@@ -204,16 +204,20 @@ void* benchmark_worker(void* num_ptr)
 }
 
 
-void benchmark(request_t request, int destination) 
+void benchmark(request_t request, const int destination, const int num_requests, 
+        const int num_threads) 
 {
-    int requests_per_thread = NUM_BENCH_REQUESTS / NUM_BENCH_THREADS;
+    int requests_per_thread = num_requests / num_threads;
     int i;
     long start_usec, end_usec;
-    pthread_t workers[NUM_BENCH_THREADS];
+    pthread_t workers[num_threads];
+
+    print_request(request);
+    printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
 
     start_usec = get_time_usecs();
 
-    for(i=0; i<NUM_BENCH_THREADS; i++) {
+    for(i=0; i<num_threads; i++) {
     	// Set up benchmark parameters to be passed to workers
     	benchmark_t* bench = (benchmark_t*)malloc(sizeof(benchmark_t));
     	bench->request = request;
@@ -222,21 +226,18 @@ void benchmark(request_t request, int destination)
         pthread_create(&workers[i], NULL, benchmark_worker, 
                 (void*)bench);
     }
-    for(i=0; i<NUM_BENCH_THREADS; i++) {
+    for(i=0; i<num_threads; i++) {
         pthread_join(workers[i], NULL);
     }
 
     end_usec = get_time_usecs();
 
-    /*
     long diff_usec = end_usec - start_usec;
     double diff = (double)diff_usec / (double)1000000;
 
-    double req_per_sec = (double)(NUM_BENCH_REQUESTS) / (double)diff;
-    printf("start: %ld end: %ld diff: %ld\n", start_usec, 
-            end_usec, diff_usec);
+    double req_per_sec = (double)(num_requests) / (double)diff;
+    printf("Total time: %.4f\n", diff);
     printf("Requests per second: %f\n", req_per_sec);
-    */
 }
 
 

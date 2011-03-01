@@ -44,24 +44,21 @@
 #define EPOLL_QUEUE_LEN 10
 #define MAX_EVENTS 10
 #define EPOLL_TIMEOUT -1
-#define NUM_WORKER_THREADS 5
-
+int NUM_WORKER_THREADS;
 
 // Client settings
 #define READ_CHUNKSIZE 1024*16
 
 // benchmark settings, these should be divisible
 // NUM_BENCH_REQUESTS should also be a multiple of 1000
-#define NUM_BENCH_THREADS 1
-#define NUM_BENCH_REQUESTS 1*1000
+//int NUM_BENCH_THREADS, NUM_BENCH_REQUESTS;
+//#define NUM_BENCH_THREADS 1
+//#define NUM_BENCH_REQUESTS 1*1000
 
 // Lookup table for destinations
 // Make sure to increment NUM_SERVERS appropriately
 int NUM_SERVERS;
-const char ** SERVERS;/*[] = {
-   "127.0.0.1",
-   "192.168.99.20"
-};*/
+const char ** SERVERS;
 
 // Directory where test files are stored
 const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
@@ -132,7 +129,8 @@ int read_uncompressed(int sockfd, char* buffer, int bufsize);
 int read_gzip(int sockfd, char* buffer, int bufsize);
 int read_lzo(int sockfd, char* buffer, int bufsize);
 long get_time_usecs();
-void benchmark(request_t request, int destination);
+void benchmark(request_t request, const int destination, 
+        const int num_requests, const int num_threads);
 void* benchmark_worker(void* num_ptr);
 
 // More generic utility functions

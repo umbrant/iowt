@@ -3,3 +3,5 @@ servers = (
 		"127.0.0.1",
 		"10.0.0.1"
 		);
+num_bench_threads = 1;
+num_bench_requests = 50;
