@@ -1,7 +1,8 @@
-file_dir = "/home/awang/Downloads/enwiki";
+file_dir = "/home/MY_USER/Downloads/enwiki";
 servers = (
 		"127.0.0.1",
-		"10.0.0.1"
+		"127.0.0.2",
+		"127.0.0.3",
+		"127.0.0.4",
+		"127.0.0.5"
 		);
-num_bench_threads = 1;
-num_bench_requests = 50;
