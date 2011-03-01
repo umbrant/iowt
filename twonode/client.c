@@ -69,7 +69,7 @@ int send_request(request_t request, int destination)
             s, sizeof(s));
     freeaddrinfo(result); // Have to free the linked list of addrs
     
-    sprintf(outstr, "client connected to %s on port %s\n", s, PORT_STR);
+    sprintf(outstr, "Host %s, ", s);
     //strcat(outstr, "Sending request...");
 
     n = send(sockfd, &request, sizeof(request_t), 0);
@@ -98,7 +98,7 @@ int send_request(request_t request, int destination)
     double request_size_mb = (double)bytes_read / (double)(1<<20);
 
     //sprintf(outstr+strlen(outstr), "response was size %d\n", bytes_read);
-    sprintf(outstr+strlen(outstr), "Rate (MB/s): %f\n", request_size_mb/diff_secs);
+    sprintf(outstr+strlen(outstr), "rate: %f\n", request_size_mb/diff_secs);
 
     printf("%s", outstr);
 
