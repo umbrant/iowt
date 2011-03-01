@@ -218,6 +218,10 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     long start_usec, end_usec;
     pthread_t workers[num_threads];
 
+    // Test for the local IP address to output to the log
+    struct ifconf buffer;
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    ioctl(sockfd, SIOCGIFCONF, &buffer);
     print_request(request);
     printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
 

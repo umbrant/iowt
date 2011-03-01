@@ -1,4 +1,4 @@
-DEBUG=-DDEBUG -g -ggdb
+DEBUG=#-DDEBUG -g -ggdb
 OPTS=-O2
 
 CC=gcc
