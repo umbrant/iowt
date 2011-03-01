@@ -19,9 +19,24 @@ void* manager_main(void *threadid) {
     signal(SIGPIPE, SIG_IGN);
 
     // Set socket to release bind
-    int optVal = 1;
-    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, 
-            (void*)&optVal, (socklen_t)sizeof(optVal));
+    int flag = 1;
+    if(setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, 
+            (void*)&flag, (socklen_t)sizeof(flag))) {
+        error("Could not set socket to release bind!\n");
+    }
+    // Set TCP_CORK, wait for full frames before sending (better tput)
+    if(setsockopt(listen_sock, IPPROTO_TCP, TCP_CORK, 
+                (char *)&flag, sizeof(flag) )) {
+       error("Could not set TCP_NODELAY!\n"); 
+    }
+    /*
+    if(setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY, 
+                (char *)&flag, sizeof(flag) )) {
+       error("Could not set TCP_NODELAY!\n"); 
+    }
+    */
+
+
 
     // Bind
     struct sockaddr_in serv_addr;
@@ -356,6 +371,13 @@ void mmap_file(char* filename, memfile_t* memfile)
     	fprintf(stderr, "    ulimit -l 1048676\n");
     	error("mmap of file failed");
     }
+    // Tell the kernel that this is going to be read sequentially
+    // Without this, the kernel doesn't do readahead?
+    // Does not seem to have any performance improvement though
+    rv = madvise(buffer, size, MADV_SEQUENTIAL);
+    if(rv) {
+        fprintf(stderr, "Could not madvise mmap'd pages! Performance might suffer.\n");
+    }
 
     memfile->buffer = buffer;
     memfile->size = size;
@@ -363,8 +385,10 @@ void mmap_file(char* filename, memfile_t* memfile)
     // Forcibly touch each page (please don't get optimized out)
     int pagesize = 4096;
     int i;
-    char temp;
+    char temp = 0;
     for(i=0; i<size/pagesize; i++) {
 		temp += memfile->buffer[i*pagesize];
     }
+
+    close(fd);
 }

@@ -9,6 +9,10 @@ int send_request(request_t request, int destination)
     struct addrinfo *result, *rp;
     long start_usecs, end_usecs;
 
+    // Used for aggregating printf output until the end
+    char outstr[1024];
+    memset(outstr, '\0', 1024);
+
     // Lookup server in the destination table
     const char* server = SERVERS[destination];
 
@@ -63,13 +67,11 @@ int send_request(request_t request, int destination)
     char s[INET6_ADDRSTRLEN];
     inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
             s, sizeof(s));
-    PRINTF("client connected to %s on port %s\n", s, PORT_STR);
+    freeaddrinfo(result); // Have to free the linked list of addrs
+    
+    sprintf(outstr, "client connected to %s on port %s\n", s, PORT_STR);
+    //strcat(outstr, "Sending request...");
 
-    // Have to free the linked list of addrs
-    freeaddrinfo(result);
-
-    //print_request(request);
-    PRINTF("Sending request...");
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
         error("ERROR writing to socket");
@@ -95,8 +97,10 @@ int send_request(request_t request, int destination)
     double diff_secs = (double)(end_usecs - start_usecs) / (double)1000000;
     double request_size_mb = (double)bytes_read / (double)(1<<20);
 
-    PRINTF("response was size %d\n", bytes_read);
-    printf("Rate (MB/s): %f\n", request_size_mb/diff_secs);
+    //sprintf(outstr+strlen(outstr), "response was size %d\n", bytes_read);
+    sprintf(outstr+strlen(outstr), "Rate (MB/s): %f\n", request_size_mb/diff_secs);
+
+    printf("%s", outstr);
 
     close(sockfd);
     return 0;
@@ -236,7 +240,7 @@ void benchmark(request_t request, const int destination, const int num_requests,
     double diff = (double)diff_usec / (double)1000000;
 
     double req_per_sec = (double)(num_requests) / (double)diff;
-    printf("Total time: %.4f\n", diff);
+    printf("\nTotal time: %.4f\n", diff);
     printf("Requests per second: %f\n", req_per_sec);
 }
 

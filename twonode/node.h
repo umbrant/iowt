@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <sys/epoll.h>
 #include <sys/mman.h>
