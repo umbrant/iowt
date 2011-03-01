@@ -40,13 +40,26 @@ int main (int argc, char *argv[])
     }
     // Benchmark
     else if(strcmp(argv[1], "benchmark") == 0) {
-        if(argc < 8) {
+        if(argc != 7) {
             usage();
         } else {
-		    make_request(argc, argv, &request, &dest);
-            int num_requests = atoi(argv[6]);
-            int num_threads = atoi(argv[7]);
-            benchmark(request, dest, num_requests, num_threads);
+            // We have to pad argv/argc with a dummy destination
+            // so make_request gets what it expects
+            int targc = 8;
+            char dummy_char = '0';
+            char* targv[8];
+            targv[0] = argv[0];
+            targv[1] = &dummy_char; // unused
+            targv[2] = argv[1];
+            targv[3] = argv[2];
+            targv[4] = argv[3];
+            targv[5] = argv[4];
+            targv[6] = argv[5];
+            targv[7] = argv[6];
+		    make_request(targc, targv, &request, &dest);
+            int num_requests = atoi(argv[5]);
+            int num_threads = atoi(argv[6]);
+            benchmark(request, num_requests, num_threads);
         }
     }
     // Default to showing usage()
@@ -216,9 +229,9 @@ void usage()
     printf("compression: none or gzip or lzo\n");
     printf("storage: memory or disk\n");
     printf("\n");
-    printf("node benchmark <dest> <size> <compress> <storage> <requests> <threads>\n");
-    printf("Benchmark mode takes the same arguments as client, and also the desired number of requests and threads to use.\n");
-    printf("Benchmark mode chooses the first server in SERVERS by default.\n");
+    printf("node benchmark <size> <compress> <storage> <requests> <threads>\n");
+    printf("Benchmark mode takes almost the same arguments as client, and also the desired number of requests and threads to use.\n");
+    printf("Benchmark threads randomly pick servers from SERVERS to connect to.\n");
     printf("\n");
 }
 

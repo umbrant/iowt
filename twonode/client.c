@@ -198,9 +198,12 @@ void* benchmark_worker(void* num_ptr)
 	benchmark_t bench = *(benchmark_t*)num_ptr;
     int i;
     for(i=0; i<bench.iterations; i++) {
+    	// Choose a random server from SERVERS to connect to
+    	int destination = random()%NUM_SERVERS;
     	int rv = 0;
+    	// We do retries if it fails the first time
     	do {
-        	rv = send_request(bench.request, bench.destination);
+        	rv = send_request(bench.request, destination);
         } while(rv);
     }
 	free(num_ptr);
@@ -208,8 +211,7 @@ void* benchmark_worker(void* num_ptr)
 }
 
 
-void benchmark(request_t request, const int destination, const int num_requests, 
-        const int num_threads) 
+void benchmark(request_t request, const int num_requests, const int num_threads) 
 {
     int requests_per_thread = num_requests / num_threads;
     int i;
@@ -225,7 +227,7 @@ void benchmark(request_t request, const int destination, const int num_requests,
     	// Set up benchmark parameters to be passed to workers
     	benchmark_t* bench = (benchmark_t*)malloc(sizeof(benchmark_t));
     	bench->request = request;
-    	bench->destination = destination;
+    	//bench->destination = destination;
     	bench->iterations = requests_per_thread;
         pthread_create(&workers[i], NULL, benchmark_worker, 
                 (void*)bench);

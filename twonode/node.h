@@ -101,7 +101,7 @@ enum STORAGE {
 
 typedef struct benchmark {
 	request_t request;
-	int destination;
+	//int destination;
 	int iterations;
 } benchmark_t;
 
@@ -130,8 +130,7 @@ int read_uncompressed(int sockfd, char* buffer, int bufsize);
 int read_gzip(int sockfd, char* buffer, int bufsize);
 int read_lzo(int sockfd, char* buffer, int bufsize);
 long get_time_usecs();
-void benchmark(request_t request, const int destination, 
-        const int num_requests, const int num_threads);
+void benchmark(request_t request, const int num_requests, const int num_threads);
 void* benchmark_worker(void* num_ptr);
 
 // More generic utility functions
