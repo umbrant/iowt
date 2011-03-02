@@ -238,7 +238,7 @@ void* benchmark_worker(void* num_ptr)
         sprintf(rand_str, "%lu", random());
         hash = crypt(rand_str, salt);
         hash_uint = (unsigned int*)hash;
-        int destination = time(NULL);
+        unsigned int destination = time(NULL);
         sum_len = strlen(hash)/4;
         for(i=0; i<sum_len; i++) {
             destination ^= hash_uint[i];
