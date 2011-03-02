@@ -1,4 +1,4 @@
 #!/bin/sh
 
 # Start server
-./node server 2
+./node server 20
