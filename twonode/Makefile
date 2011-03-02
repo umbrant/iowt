@@ -2,7 +2,7 @@ DEBUG=#-DDEBUG -g -ggdb
 OPTS=-O2
 
 CC=gcc
-LIBS=-lpthread -lconfig -lz -llzo2
+LIBS=-lpthread -lconfig -lz -llzo2 -lcrypt
 CFLAGS=${OPTS} ${DEBUG} -Wall
 
 node: server.o client.o util.o

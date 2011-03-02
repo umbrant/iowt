@@ -222,7 +222,15 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
     printf("\n");
 
-    srandom(time(NULL));
+    // Make a good random seed, different per machine
+    // Do this by hashing the machine's hostname
+    char myhostname[100];
+    memset(myhostname, '\0', 100);
+    gethostname(myhostname, 100);
+    char *hash = crypt(myhostname, "io");
+    unsigned int seed = *((unsigned int*)hash) + time(NULL);
+    srandom(seed);
+
     start_usec = get_time_usecs();
 
     for(i=0; i<num_threads; i++) {
