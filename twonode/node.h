@@ -142,5 +142,6 @@ void error(const char *msg);
 void usage();
 int set_nonblocking(int sockfd);
 void* get_in_addr(struct sockaddr *sa);
+void flush_page_cache();
 
 #endif

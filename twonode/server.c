@@ -292,6 +292,8 @@ int get_request_filename(request_t request, char* filename)
         c = filecount_64;
         if(filecount_64 == 'q') {
             filecount_64 = 'a';
+            // Flush page cache
+            flush_page_cache();
         } else {
             filecount_64++;
         }
@@ -301,6 +303,8 @@ int get_request_filename(request_t request, char* filename)
         c = filecount_256;
         if(filecount_256 == 'k') {
             filecount_256 = 'a';
+            // Flush page cache
+            flush_page_cache();
         } else {
             filecount_256++;
         }
@@ -316,7 +320,7 @@ int get_request_filename(request_t request, char* filename)
 
 void init_mmap_files()
 {
-    char filename[1024];
+    char filename[1025];
     memset(filename, '\0', 1024);
 
 	// Lock the 64M files
