@@ -234,29 +234,25 @@ void* benchmark_worker(void* num_ptr)
 
     char rand_str[100];
     for(i=0; i<bench.iterations; i++) {
-        printf("Thread %d (%d of %d) iterating\n", bench.thread_id, i, bench.iterations);
         // Generate a new hash for the actual selection
         // with the thread's unique salt
         memset(rand_str, '\0', 100);
         sprintf(rand_str, "%lu", random());
         unsigned int destination = time(NULL);
-        printf("Thread %d dest: %d\n", bench.thread_id, destination);
         hash = crypt(rand_str, salt);
         hash_uint = (unsigned int*)hash;
         hash_uint_len = strlen(hash)/(sizeof(unsigned int));
-        for(i=0; i<hash_uint_len; i++) {
-            destination ^= hash_uint[i];
+        int k;
+        for(k=0; k<hash_uint_len; k++) {
+            destination ^= hash_uint[k];
         }
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
-        printf("Thread %d new dest: %d\n", bench.thread_id, destination);
     	int rv = 0;
     	// We do retries if it fails the first time
     	do {
-            printf("Thread %d (%d of %d) sending\n", bench.thread_id, i, bench.iterations);
         	rv = send_request(bench.request, destination);
         } while(rv);
-        printf("Thread %d (%d of %d) completed\n", bench.thread_id, i, bench.iterations);
     }
 	free(num_ptr);
     return 0;
