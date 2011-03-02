@@ -234,7 +234,7 @@ void* benchmark_worker(void* num_ptr)
 
     char rand_str[100];
     for(i=0; i<bench.iterations; i++) {
-        printf("Thread %d iterating %d of %d\n", bench.thread_id, i, bench.iterations);
+        printf("Thread %d (%d of %d) iterating\n", bench.thread_id, i, bench.iterations);
         // Generate a new hash for the actual selection
         // with the thread's unique salt
         memset(rand_str, '\0', 100);
@@ -253,8 +253,10 @@ void* benchmark_worker(void* num_ptr)
     	int rv = 0;
     	// We do retries if it fails the first time
     	do {
+            printf("Thread %d (%d of %d) sending\n", bench.thread_id, i, bench.iterations);
         	rv = send_request(bench.request, destination);
         } while(rv);
+        printf("Thread %d (%d of %d) completed\n", bench.thread_id, i, bench.iterations);
     }
 	free(num_ptr);
     return 0;
