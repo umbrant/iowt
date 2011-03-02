@@ -234,6 +234,7 @@ void* benchmark_worker(void* num_ptr)
 
     char rand_str[100];
     for(i=0; i<bench.iterations; i++) {
+        printf("Thread %d iterating %d of %d\n", bench.thread_id, i, bench.iterations);
         // Generate a new hash for the actual selection
         // with the thread's unique salt
         memset(rand_str, '\0', 100);
@@ -246,9 +247,9 @@ void* benchmark_worker(void* num_ptr)
         for(i=0; i<hash_uint_len; i++) {
             destination ^= hash_uint[i];
         }
-        printf("Thread %d new dest: %d\n", bench.thread_id, destination);
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
+        printf("Thread %d new dest: %d\n", bench.thread_id, destination);
     	int rv = 0;
     	// We do retries if it fails the first time
     	do {
