@@ -197,6 +197,19 @@ void* benchmark_worker(void* num_ptr)
 {
 	benchmark_t bench = *(benchmark_t*)num_ptr;
     int i;
+
+    // Make a good random seed, different per machine
+    // Do this by hashing the machine's hostname
+    char myhostname[100];
+    memset(myhostname, '\0', 100);
+    gethostname(myhostname, 100);
+    char *hash = crypt(myhostname, "io");
+    unsigned int hash_sum = time(NULL); // artificial sum, just need something
+    for(i=0; i<13; i++) {
+        hash_sum += (unsigned int)hash[i];
+    }
+    srandom(hash_sum);
+
     for(i=0; i<bench.iterations; i++) {
     	// Choose a random server from SERVERS to connect to
     	int destination = random()%NUM_SERVERS;
@@ -221,15 +234,6 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     print_request(request);
     printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
     printf("\n");
-
-    // Make a good random seed, different per machine
-    // Do this by hashing the machine's hostname
-    char myhostname[100];
-    memset(myhostname, '\0', 100);
-    gethostname(myhostname, 100);
-    char *hash = crypt(myhostname, "io");
-    unsigned int seed = *((unsigned int*)hash) + time(NULL);
-    srandom(seed);
 
     start_usec = get_time_usecs();
 
