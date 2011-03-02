@@ -148,7 +148,8 @@ void* request_handler(void *fd_ptr)
             // Read request from the socket
             int rv = recv(sockfd, &request, sizeof(request), 0);
             if (rv < 0) {
-                error("ERROR reading from socket\n");
+                fprintf(stderr, "ERROR reading from socket\n");
+                continue;
             }
             print_request(request);
             if(request.storage == STORAGE_DISK) {
