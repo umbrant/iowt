@@ -203,26 +203,48 @@ void* benchmark_worker(void* num_ptr)
     char myhostname[100];
     memset(myhostname, '\0', 100);
     gethostname(myhostname, 100);
+    char * hostname_trimmed = myhostname;
+    int host_len = strlen(myhostname);
+    // We want to get the end for a unique salt, 
+    // since on aws the beginning is prefixed
+    if(host_len > 15) {
+        hostname_trimmed = myhostname + host_len - 15;
+    }
+    // Also need to incorporate a per-thread uniqueness 
     char tid[5];
     sprintf(tid, "%d", bench.thread_id);
 
-    char salt[1024];
-    memset(salt, '\0', 1024);
+    // Every thread now will have a unique salt
+    char salt[25];
+    memset(salt, '\0', 25);
     strcat(salt, "$6$");
     strcat(salt, tid);
-    strcat(salt, myhostname);
+    strcat(salt, hostname_trimmed);
     strcat(salt, "$");
 
     char *hash = crypt(myhostname, salt);
     unsigned int hash_sum = time(NULL); // artificial sum, just need something
-    for(i=0; i<43; i++) {
-        hash_sum ^= (unsigned int)hash[i];
+    int sum_len = strlen(hash)/4;
+    unsigned int* hash_uint = (unsigned int*)hash;
+    for(i=0; i<sum_len; i++) {
+        hash_sum ^= hash_uint[i];
     }
     srandom(hash_sum);
 
     for(i=0; i<bench.iterations; i++) {
+        // Generate a new hash for the actual selection
+        // with the thread's unique salt
+        char rand_str[100];
+        sprintf(rand_str, "%lu", random());
+        hash = crypt(rand_str, salt);
+        hash_uint = (unsigned int*)hash;
+        int destination = time(NULL);
+        sum_len = strlen(hash)/4;
+        for(i=0; i<sum_len; i++) {
+            destination ^= hash_uint[i];
+        }
     	// Choose a random server from SERVERS to connect to
-    	int destination = random()%NUM_SERVERS;
+    	destination = destination%NUM_SERVERS;
     	int rv = 0;
     	// We do retries if it fails the first time
     	do {
