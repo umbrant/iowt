@@ -203,10 +203,20 @@ void* benchmark_worker(void* num_ptr)
     char myhostname[100];
     memset(myhostname, '\0', 100);
     gethostname(myhostname, 100);
-    char *hash = crypt(myhostname, "io");
+    char tid[5];
+    sprintf(tid, "%d", bench.thread_id);
+
+    char salt[1024];
+    memset(salt, '\0', 1024);
+    strcat(salt, "$6$");
+    strcat(salt, tid);
+    strcat(salt, myhostname);
+    strcat(salt, "$");
+
+    char *hash = crypt(myhostname, salt);
     unsigned int hash_sum = time(NULL); // artificial sum, just need something
-    for(i=0; i<13; i++) {
-        hash_sum += (unsigned int)hash[i];
+    for(i=0; i<43; i++) {
+        hash_sum ^= (unsigned int)hash[i];
     }
     srandom(hash_sum);
 
@@ -242,6 +252,7 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     	benchmark_t* bench = (benchmark_t*)malloc(sizeof(benchmark_t));
     	bench->request = request;
     	//bench->destination = destination;
+    	bench->thread_id = i;
     	bench->iterations = requests_per_thread;
         pthread_create(&workers[i], NULL, benchmark_worker, 
                 (void*)bench);

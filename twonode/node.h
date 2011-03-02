@@ -104,6 +104,7 @@ typedef struct benchmark {
 	request_t request;
 	//int destination;
 	int iterations;
+	int thread_id;
 } benchmark_t;
 
 // I should make one count per permutation of request, but I'm lazy and that
