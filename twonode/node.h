@@ -102,7 +102,6 @@ enum STORAGE {
 
 typedef struct benchmark {
 	request_t request;
-	//int destination;
 	int iterations;
 	int thread_id;
 } benchmark_t;

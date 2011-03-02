@@ -212,6 +212,7 @@ void* benchmark_worker(void* num_ptr)
     }
     // Also need to incorporate a per-thread uniqueness 
     char tid[5];
+    memset(tid,'\0', 5);
     sprintf(tid, "%d", bench.thread_id);
 
     // Every thread now will have a unique salt
@@ -224,25 +225,28 @@ void* benchmark_worker(void* num_ptr)
 
     char *hash = crypt(myhostname, salt);
     unsigned int hash_sum = time(NULL); // artificial sum, just need something
-    int sum_len = strlen(hash)/4;
+    int hash_uint_len = strlen(hash)/(sizeof(unsigned int));
     unsigned int* hash_uint = (unsigned int*)hash;
-    for(i=0; i<sum_len; i++) {
+    for(i=0; i<hash_uint_len; i++) {
         hash_sum ^= hash_uint[i];
     }
     srandom(hash_sum);
 
+    char rand_str[100];
     for(i=0; i<bench.iterations; i++) {
         // Generate a new hash for the actual selection
         // with the thread's unique salt
-        char rand_str[100];
+        memset(rand_str, '\0', 100);
         sprintf(rand_str, "%lu", random());
+        unsigned int destination = time(NULL);
+        printf("Thread %d dest: %d\n", request.thread_id, destination);
         hash = crypt(rand_str, salt);
         hash_uint = (unsigned int*)hash;
-        unsigned int destination = time(NULL);
-        sum_len = strlen(hash)/4;
-        for(i=0; i<sum_len; i++) {
+        hash_uint_len = strlen(hash)/(sizeof(unsigned int));
+        for(i=0; i<hash_uint_len; i++) {
             destination ^= hash_uint[i];
         }
+        printf("Thread %d new dest: %d\n", request.thread_id, destination);
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
     	int rv = 0;
@@ -273,7 +277,6 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     	// Set up benchmark parameters to be passed to workers
     	benchmark_t* bench = (benchmark_t*)malloc(sizeof(benchmark_t));
     	bench->request = request;
-    	//bench->destination = destination;
     	bench->thread_id = i;
     	bench->iterations = requests_per_thread;
         pthread_create(&workers[i], NULL, benchmark_worker, 
