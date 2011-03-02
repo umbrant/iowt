@@ -6,6 +6,9 @@ void* manager_main(void *threadid) {
     int listen_sock;
     int i;
 
+    // Clear out the page cache, make sure disk reads go to disk
+    flush_page_cache();
+
 	// Initialize memfiles, pinned into RAM
 	init_mmap_files();
 
