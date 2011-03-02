@@ -239,14 +239,14 @@ void* benchmark_worker(void* num_ptr)
         memset(rand_str, '\0', 100);
         sprintf(rand_str, "%lu", random());
         unsigned int destination = time(NULL);
-        printf("Thread %d dest: %d\n", request.thread_id, destination);
+        printf("Thread %d dest: %d\n", bench.thread_id, destination);
         hash = crypt(rand_str, salt);
         hash_uint = (unsigned int*)hash;
         hash_uint_len = strlen(hash)/(sizeof(unsigned int));
         for(i=0; i<hash_uint_len; i++) {
             destination ^= hash_uint[i];
         }
-        printf("Thread %d new dest: %d\n", request.thread_id, destination);
+        printf("Thread %d new dest: %d\n", bench.thread_id, destination);
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
     	int rv = 0;
