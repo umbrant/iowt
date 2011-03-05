@@ -68,6 +68,32 @@ def main():
     open(datapath + "/" + "result_gzip_mem_local", "w").write(  "\n".join(data["gzip"]["mem"]["local"]))
     open(datapath + "/" + "result_gzip_mem_remote", "w").write( "\n".join(data["gzip"]["mem"]["remote"]))
 
+    # Do a spreadsheet friendly version
+    csv = ",".join(["", "", \
+                    "", "", \
+                    "", "", \
+                    "", ""])
+    csv += "\n"
+    csv += ",".join(["none disk local", "none disk remote", \
+                    "none mem local", "none mem remote", \
+                    "gzip disk local", "gzip disk remote", \
+                    "gzip mem local", "gzip mem remote"])
+    csv += "\n"
+    str_maker = lambda x: (x, "")[x == None]
+    tuple_maker = lambda a,b,c,d,e,f,g,h: map(str_maker,(a,b,c,d,e,f,g,h))
+    csv_data = map(tuple_maker, \
+                   data["none"]["disk"]["local"],\
+                   data["none"]["disk"]["remote"],\
+                   data["none"]["mem"]["local"],\
+                   data["none"]["mem"]["remote"],\
+                   data["gzip"]["disk"]["local"],\
+                   data["gzip"]["disk"]["remote"],\
+                   data["gzip"]["mem"]["local"],\
+                   data["gzip"]["mem"]["remote"])
+    csv_lines = "\n".join(",".join(x) for x in csv_data)
+    csv += csv_lines
+
+    open(datapath + "/" + "result_aggregate", "w").write(csv)
 
 if __name__ == "__main__":
     main()
