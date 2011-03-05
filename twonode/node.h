@@ -1,6 +1,8 @@
 #ifndef IOWT_H
 #define IOWT_H
 
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -25,9 +27,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h> 
+#include <sys/uio.h>
 
 #include <libconfig.h>
-
 #include "zlib.h"
 #include <lzo/lzo1x.h>
 
@@ -66,17 +68,20 @@ const char ** SERVERS;
 const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
 
 // Set of files mmap'd into memory
+/*
 typedef struct memfile {
 	char* buffer;
 	size_t size;
 } memfile_t;
+*/
+typedef struct iovec iovec_t;
 struct mmapfiles {
-	memfile_t raw_64;
-	memfile_t gzip_64;
-	memfile_t lzo_64;
-	memfile_t raw_256;
-	memfile_t gzip_256;
-	memfile_t lzo_256;
+	iovec_t raw_64;
+	iovec_t gzip_64;
+	iovec_t lzo_64;
+	iovec_t raw_256;
+	iovec_t gzip_256;
+	iovec_t lzo_256;
 } mmapfiles;
 
 // Strut and enums for defining a request
@@ -119,11 +124,11 @@ void* manager_main(void *threadid);
 void* request_handler(void *fd_ptr);
 int fd_from_request(request_t request, int* in_fd);
 int disk_request(request_t request, int* in_fd);
-int memory_request(request_t request, memfile_t* memfile);
+int memory_request(request_t request, iovec_t* memfile);
 int get_request_filename(request_t request, char* filename);
 void init_filenames();
 void init_mmap_files();
-void mmap_file(char* filename, memfile_t* memfile);
+void mmap_file(char* filename, iovec_t* memfile);
 
 // Client and benchmark functions
 int send_request(request_t request, int destination);

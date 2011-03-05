@@ -62,7 +62,6 @@ int send_request(request_t request, int destination)
     int bufsize = megabytes * (1<<20);
     char * buffer = (char*)calloc(1, bufsize);
 
-    start_usecs = get_time_usecs();
 
     char s[INET6_ADDRSTRLEN];
     inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
@@ -71,6 +70,8 @@ int send_request(request_t request, int destination)
     
     sprintf(outstr, "Host %s, ", s);
     //strcat(outstr, "Sending request...");
+
+    start_usecs = get_time_usecs();
 
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
@@ -98,7 +99,8 @@ int send_request(request_t request, int destination)
     double request_size_mb = (double)bytes_read / (double)(1<<20);
 
     //sprintf(outstr+strlen(outstr), "response was size %d\n", bytes_read);
-    sprintf(outstr+strlen(outstr), "rate: %f\n", request_size_mb/diff_secs);
+    sprintf(outstr+strlen(outstr), "rate: %f size: %d\n", 
+            request_size_mb/diff_secs, bytes_read);
 
     printf("%s", outstr);
 

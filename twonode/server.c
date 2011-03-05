@@ -162,16 +162,67 @@ void* request_handler(void *fd_ptr)
             		error("ERROR sendfile to socket");
         		}
         	}
-        	else if(request.storage == STORAGE_MEMORY) {
-				memfile_t memfile;
+        	else if(request.storage == STORAGE_MEMORY 
+        	        && request.compression == COMPRESSION_NONE) {
+				iovec_t memfile;
 				size = memory_request(request, &memfile);
-				// send it normally to the socket
-				rv = send(sockfd, memfile.buffer, size, 0);
-				if(rv == -1) {
-					error("ERROR send to socket");
-				}
+				// We use vmsplice() and splice() to do the equivalent
+				// of zero-copy and sendfile() from a userspace buffer
+                int pipefd[2]; // 0 is read end, 1 is write end
+                printf("iov_len: %lu\n", memfile.iov_len);
+                if(pipe2(pipefd, 0) == -1) {
+                    error("pipe error");
+                }
+                int bytes_to_vmsplice = memfile.iov_len;
+                int bytes_to_splice = memfile.iov_len;
+                while(bytes_to_vmsplice > 0) {
+                    // vmsplice() memory into a pipe
+                    int vmsplice_bytes = vmsplice(pipefd[1], &memfile, 1, SPLICE_F_NONBLOCK); 
+                    if(vmsplice_bytes == -1) {
+                        //error("vmsplice failed");
+                    } else {
+                    //printf("vmsplice bytes: %d\n", vmsplice_bytes);
+                        bytes_to_vmsplice -= vmsplice_bytes;
+                    }
+
+                    // splice() pipe fd into socket fd
+                    if(bytes_to_vmsplice < bytes_to_splice) {
+                        int splice_bytes = splice(pipefd[0], NULL, sockfd, NULL, memfile.iov_len, 0);
+                        //printf("splice bytes: %d\n", splice_bytes);
+				        if(splice_bytes == -1) {
+				            //printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
+					        //error("ERROR splice to socket");
+
+				        } else {
+                            bytes_to_splice -= splice_bytes;
+                        }
+                    }
+                }
+                printf("Done with vmsplice\n");
+                // Splice the remainder
+                while(bytes_to_splice > 0) {
+                    int splice_bytes = splice(pipefd[0], NULL, sockfd, NULL, memfile.iov_len, 0);
+                    //printf("splice bytes: %d\n", splice_bytes);
+				    if(splice_bytes == -1) {
+				        printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
+					    error("ERROR splice to socket");
+				    }
+                    bytes_to_splice -= splice_bytes;
+                }
+				close(pipefd[0]);
+				close(pipefd[1]);
+        	}
+        	else if(request.storage == STORAGE_MEMORY
+        	        && request.compression == COMPRESSION_GZIP) {
+				iovec_t memfile;
+				size = memory_request(request, &memfile);
+                rv = send(sockfd, memfile.iov_base, size, 0);
+                if(rv == -1) {
+                    error("ERROR sending gzip to socket");
+                }
         	}
         	else {
+        	    print_request(request);
         		error("Invalid request.storage");
         	}
             PRINTF("Size of file: %d\n", size);
@@ -208,7 +259,7 @@ int disk_request(request_t request, int* in_fd)
 }
 
 
-int memory_request(request_t request, memfile_t* memfile)
+int memory_request(request_t request, iovec_t* memfile)
 {
 	int s = request.size;
 	int c = request.compression;
@@ -244,7 +295,7 @@ int memory_request(request_t request, memfile_t* memfile)
 	}
 
     // Get and return the file size
-    return memfile->size;
+    return memfile->iov_len;
 }
 
 
@@ -355,7 +406,7 @@ void init_mmap_files()
 }
 
 
-void mmap_file(char* filename, memfile_t* memfile)
+void mmap_file(char* filename, iovec_t* memfile)
 {
 	PRINTF("mmap'ing file %s\n", filename);
 
@@ -387,8 +438,8 @@ void mmap_file(char* filename, memfile_t* memfile)
         fprintf(stderr, "Could not madvise mmap'd pages! Performance might suffer.\n");
     }
 
-    memfile->buffer = buffer;
-    memfile->size = size;
+    memfile->iov_base = buffer;
+    memfile->iov_len = size;
 
     // Forcibly touch each page (please don't get optimized out)
     /*

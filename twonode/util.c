@@ -256,6 +256,7 @@ void *get_in_addr(struct sockaddr *sa)
 
 
 void flush_page_cache() {
+    return;
     printf("Flushing read cache\n");
     if(system("echo 1 > /proc/sys/vm/drop_caches") == -1) {
         error("system() drop_caches failed!");
