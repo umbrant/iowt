@@ -345,7 +345,7 @@ int get_request_filename(request_t request, char* filename)
     if(request.size == SIZE_64) {
         pthread_mutex_lock(&filecount_64_mutex);
         c = filecount_64;
-        if(filecount_64 == 'k') {
+        if(filecount_64 == 'j') {
             filecount_64 = 'a';
             // Flush page cache
             flush_page_cache();
@@ -356,7 +356,7 @@ int get_request_filename(request_t request, char* filename)
     } else if(request.size == SIZE_256) {
         pthread_mutex_lock(&filecount_256_mutex);
         c = filecount_256;
-        if(filecount_256 == 'k') {
+        if(filecount_256 == 'j') {
             filecount_256 = 'a';
             // Flush page cache
             flush_page_cache();
@@ -380,28 +380,28 @@ void init_mmap_files()
 
 	// Lock the 64M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/none/al");
+	strcat(filename, "/64/none/ak");
 	mmap_file(filename, &mmapfiles.raw_64);
 	
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/gzip/al.gz");
+	strcat(filename, "/64/gzip/ak.gz");
 	mmap_file(filename, &mmapfiles.gzip_64);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/lzo/al.lzo");
+	strcat(filename, "/64/lzo/ak.lzo");
 	mmap_file(filename, &mmapfiles.lzo_64);
 
 	// Lock the 256M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/none/al");
+	strcat(filename, "/256/none/ak");
 	mmap_file(filename, &mmapfiles.raw_256);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/gzip/al.gz");
+	strcat(filename, "/256/gzip/ak.gz");
 	mmap_file(filename, &mmapfiles.gzip_256);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/256/lzo/al.lzo");
+	strcat(filename, "/256/lzo/ak.lzo");
 	mmap_file(filename, &mmapfiles.lzo_256);
 }
 
