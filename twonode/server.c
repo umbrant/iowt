@@ -345,7 +345,7 @@ int get_request_filename(request_t request, char* filename)
     if(request.size == SIZE_64) {
         pthread_mutex_lock(&filecount_64_mutex);
         c = filecount_64;
-        if(filecount_64 == 'q') {
+        if(filecount_64 == 'k') {
             filecount_64 = 'a';
             // Flush page cache
             flush_page_cache();
@@ -380,15 +380,15 @@ void init_mmap_files()
 
 	// Lock the 64M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/none/ar");
+	strcat(filename, "/64/none/al");
 	mmap_file(filename, &mmapfiles.raw_64);
 	
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/gzip/ar.gz");
+	strcat(filename, "/64/gzip/al.gz");
 	mmap_file(filename, &mmapfiles.gzip_64);
 
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/lzo/ar.lzo");
+	strcat(filename, "/64/lzo/al.lzo");
 	mmap_file(filename, &mmapfiles.lzo_64);
 
 	// Lock the 256M files
