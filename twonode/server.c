@@ -169,7 +169,6 @@ void* request_handler(void *fd_ptr)
 				// We use vmsplice() and splice() to do the equivalent
 				// of zero-copy and sendfile() from a userspace buffer
                 int pipefd[2]; // 0 is read end, 1 is write end
-                printf("iov_len: %lu\n", memfile.iov_len);
                 if(pipe(pipefd) == -1) {
                     error("pipe error");
                 }
@@ -179,32 +178,28 @@ void* request_handler(void *fd_ptr)
                     // vmsplice() memory into a pipe
                     int vmsplice_bytes = vmsplice(pipefd[1], &memfile, 1, SPLICE_F_NONBLOCK); 
                     if(vmsplice_bytes == -1) {
-                        //error("vmsplice failed");
+                        error("vmsplice failed");
                     } else {
-                    //printf("vmsplice bytes: %d\n", vmsplice_bytes);
                         bytes_to_vmsplice -= vmsplice_bytes;
                     }
 
                     // splice() pipe fd into socket fd
                     if(bytes_to_vmsplice < bytes_to_splice) {
                         int splice_bytes = splice(pipefd[0], NULL, sockfd, NULL, memfile.iov_len, 0);
-                        //printf("splice bytes: %d\n", splice_bytes);
 				        if(splice_bytes == -1) {
 				            //printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
-					        //error("ERROR splice to socket");
+					        error("ERROR splice to socket");
 
 				        } else {
                             bytes_to_splice -= splice_bytes;
                         }
                     }
                 }
-                printf("Done with vmsplice\n");
                 // Splice the remainder
                 while(bytes_to_splice > 0) {
                     int splice_bytes = splice(pipefd[0], NULL, sockfd, NULL, memfile.iov_len, 0);
-                    //printf("splice bytes: %d\n", splice_bytes);
 				    if(splice_bytes == -1) {
-				        printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
+				        //printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
 					    error("ERROR splice to socket");
 				    }
                     bytes_to_splice -= splice_bytes;
