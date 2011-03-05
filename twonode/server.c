@@ -170,7 +170,7 @@ void* request_handler(void *fd_ptr)
 				// of zero-copy and sendfile() from a userspace buffer
                 int pipefd[2]; // 0 is read end, 1 is write end
                 printf("iov_len: %lu\n", memfile.iov_len);
-                if(pipe2(pipefd, 0) == -1) {
+                if(pipe(pipefd) == -1) {
                     error("pipe error");
                 }
                 int bytes_to_vmsplice = memfile.iov_len;
