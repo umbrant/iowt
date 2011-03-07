@@ -30,7 +30,7 @@ void* manager_main(void *threadid) {
     // Set TCP_CORK, wait for full frames before sending (better tput)
     if(setsockopt(listen_sock, IPPROTO_TCP, TCP_CORK, 
                 (char *)&flag, sizeof(flag) )) {
-       error("Could not set TCP_NODELAY!\n"); 
+       error("Could not set TCP_CORK!\n"); 
     }
     /*
     if(setsockopt(listen_sock, IPPROTO_TCP, TCP_NODELAY, 
@@ -38,7 +38,6 @@ void* manager_main(void *threadid) {
        error("Could not set TCP_NODELAY!\n"); 
     }
     */
-
 
 
     // Bind
@@ -152,6 +151,13 @@ void* request_handler(void *fd_ptr)
                 continue;
             }
             print_request(request);
+            // skip deprecated options
+            if(request.compression == COMPRESSION_LZO ||
+                    request.size == SIZE_256) {
+                printf("Unsupported request type (lzo or 256)\n");
+                close(sockfd);
+                continue;
+            }
             if(request.storage == STORAGE_DISK) {
         		// Get file descriptor of requested file
         		int in_fd;
@@ -335,22 +341,33 @@ int get_request_filename(request_t request, char* filename)
     }
 
     // Finally, the file basename
-    strcat(filename, "/a");
-    char c;
+    // 64MB goes from xaa to xcs
+    strcat(filename, "/x");
+    char c1 = '\0';
+    char c2 = '\0';
     if(request.size == SIZE_64) {
         pthread_mutex_lock(&filecount_64_mutex);
-        c = filecount_64;
-        if(filecount_64 == 'j') {
-            filecount_64 = 'a';
-            // Flush page cache
+        c1 = filecount_64_1;
+        c2 = filecount_64_2;
+
+        filecount_64_2++;
+
+        // Fixup filecounts to rollover correctly
+        if(filecount_64_2 > 'z') {
+            filecount_64_2 = 'a';
+            filecount_64_1++;
+        } 
+        // Flush and reset if we're at the end
+        if(filecount_64_1 == 'c' &&
+                filecount_64_2 > 's') {
             flush_page_cache();
-        } else {
-            filecount_64++;
+            filecount_64_1 = 'a';
+            filecount_64_2 = 'a';
         }
         pthread_mutex_unlock(&filecount_64_mutex);
     } else if(request.size == SIZE_256) {
         pthread_mutex_lock(&filecount_256_mutex);
-        c = filecount_256;
+        c1 = filecount_256;
         if(filecount_256 == 'j') {
             filecount_256 = 'a';
             // Flush page cache
@@ -361,7 +378,8 @@ int get_request_filename(request_t request, char* filename)
         pthread_mutex_unlock(&filecount_256_mutex);
     }
 
-    strncat(filename, &c, 1);
+    strncat(filename, &c1, 1);
+    strncat(filename, &c2, 1);
     strcat(filename, suffix);
 
     return 0;

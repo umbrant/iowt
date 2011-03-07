@@ -115,7 +115,8 @@ typedef struct benchmark {
 // is a lot of typing and hassle for something that is not going to bottleneck.
 pthread_mutex_t filecount_64_mutex;
 pthread_mutex_t filecount_256_mutex;
-char filecount_64;
+char filecount_64_1;
+char filecount_64_2;
 char filecount_256;
 
 // Main and server functions

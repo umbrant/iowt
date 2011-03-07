@@ -11,7 +11,8 @@ int main (int argc, char *argv[])
     pthread_mutex_init(&filecount_64_mutex, NULL);
     pthread_mutex_init(&filecount_256_mutex, NULL);
     // Init their counters too
-    filecount_64 = 'a';
+    filecount_64_1 = 'a';
+    filecount_64_2 = 'a';
     filecount_256 = 'a';
 
 	request_t request;
