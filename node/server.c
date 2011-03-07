@@ -342,6 +342,8 @@ int get_request_filename(request_t request, char* filename)
 
     // Finally, the file basename
     // 64MB goes from xaa to xcs
+    // xcs is the one that is mmap'd in, so it should not be
+    // returned by this function
     strcat(filename, "/x");
     char c1 = '\0';
     char c2 = '\0';
@@ -359,7 +361,7 @@ int get_request_filename(request_t request, char* filename)
         } 
         // Flush and reset if we're at the end
         if(filecount_64_1 == 'c' &&
-                filecount_64_2 > 's') {
+                filecount_64_2 == 's') {
             flush_page_cache();
             filecount_64_1 = 'a';
             filecount_64_2 = 'a';
@@ -393,18 +395,21 @@ void init_mmap_files()
 
 	// Lock the 64M files
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/none/ak");
+	strcat(filename, "/64/none/xcs");
 	mmap_file(filename, &mmapfiles.raw_64);
 	
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/gzip/ak.gz");
+	strcat(filename, "/64/gzip/xcs.gz");
 	mmap_file(filename, &mmapfiles.gzip_64);
 
+    /*
 	strcpy(filename, FILE_DIR);  
-	strcat(filename, "/64/lzo/ak.lzo");
+	strcat(filename, "/64/lzo/xak.lzo");
 	mmap_file(filename, &mmapfiles.lzo_64);
+	*/
 
 	// Lock the 256M files
+	/*
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/256/none/ak");
 	mmap_file(filename, &mmapfiles.raw_256);
@@ -416,6 +421,7 @@ void init_mmap_files()
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/256/lzo/ak.lzo");
 	mmap_file(filename, &mmapfiles.lzo_256);
+	*/
 }
 
 
