@@ -209,8 +209,8 @@ void* benchmark_worker(void* num_ptr)
     int host_len = strlen(myhostname);
     // We want to get the end for a unique salt, 
     // since on aws the beginning is prefixed
-    if(host_len > 15) {
-        hostname_trimmed = myhostname + host_len - 15;
+    if(host_len > 14) {
+        hostname_trimmed = myhostname + host_len - 14;
     }
     // Also need to incorporate a per-thread uniqueness 
     char tid[5];
@@ -225,23 +225,27 @@ void* benchmark_worker(void* num_ptr)
     strcat(salt, hostname_trimmed);
     strcat(salt, "$");
 
-    char *hash = crypt(myhostname, salt);
+    struct crypt_data cdata;
+    struct random_data rdata;
+
+    char *hash = crypt_r(myhostname, salt, &cdata);
     unsigned int hash_sum = time(NULL); // artificial sum, just need something
     int hash_uint_len = strlen(hash)/(sizeof(unsigned int));
     unsigned int* hash_uint = (unsigned int*)hash;
     for(i=0; i<hash_uint_len; i++) {
         hash_sum ^= hash_uint[i];
     }
-    srandom(hash_sum);
+    srandom_r(hash_sum, &rdata);
 
     char rand_str[100];
+    cdata.initialized = 0;
     for(i=0; i<bench.iterations; i++) {
         // Generate a new hash for the actual selection
         // with the thread's unique salt
         memset(rand_str, '\0', 100);
         sprintf(rand_str, "%lu", random());
         unsigned int destination = time(NULL);
-        hash = crypt(rand_str, salt);
+        hash = crypt_r(rand_str, salt, &cdata);
         hash_uint = (unsigned int*)hash;
         hash_uint_len = strlen(hash)/(sizeof(unsigned int));
         int k;
