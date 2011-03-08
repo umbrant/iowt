@@ -6,25 +6,20 @@ import sys
 def main():
     # Init big data structure used for holding all data
     data = {}
+    for k1 in ("none", "gzip"):
+        data[k1] = {}
+        for k2 in ("disk", "mem"):
+            data[k1][k2] = {}
+            for k3 in ("local", "remote"):
+                data[k1][k2][k3] = []
 
-    data["none"] = {}
-    data["gzip"] = {}
-
-    data["none"]["disk"] = {}
-    data["none"]["mem"] = {}
-    data["gzip"]["disk"] = {}
-    data["gzip"]["mem"] = {}
-
-    data["none"]["disk"]["local"] = []
-    data["none"]["disk"]["remote"] = []
-    data["none"]["mem"]["local"] = []
-    data["none"]["mem"]["remote"] = []
-
-    data["gzip"]["disk"]["local"] = []
-    data["gzip"]["disk"]["remote"] = []
-    data["gzip"]["mem"]["local"] = []
-    data["gzip"]["mem"]["remote"] = []
-
+    # Init data structure used for tail trimming
+    # Figure out the min completion time to do tail trimming
+    trim = {}
+    for k1 in ("none", "gzip"):
+        trim[k1] = {}
+        for k2 in ("disk", "mem"):
+            trim[k1][k2] = "9999999999999999"
 
     if len(sys.argv) != 2:
         print "Must specify path to data folder"
@@ -32,6 +27,7 @@ def main():
 
     datapath = sys.argv[1]
     listing = os.listdir(datapath)
+
     for filename in listing:
         # Only parse benchmark files
         if not filename.startswith("benchmark"):
@@ -49,15 +45,44 @@ def main():
         storage = request[2].split(": ")[1]
         bench_settings = lines[3]
 
+        temp_min = 0
         for line in lines[5:]:
             if line == "":
+                if temp_min < trim[compression][storage]:
+                    trim[compression][storage] = temp_min
                 break
-            host = line.split(" ")[1][:-1]
-            rate = line.split(" ")[3]
+            splitted = line.split(", ")
+            time = splitted[0]
+            host = splitted[1].split(" ")[1]
+            rate = splitted[2].split(" ")[1]
+
             location = "remote"
             if host == ip:
                 location = "local"
-            data[compression][storage][location].append(rate)
+            data[compression][storage][location].append((time,rate))
+            temp_min = time
+
+    # Trim off all the tail data
+    for k1 in data.keys():
+        for k2 in data[k1].keys():
+            total = 0
+            counter = 0
+            for k3 in data[k1][k2].keys():
+                l = data[k1][k2][k3][:] # Make a copy
+                for x in l:
+                    total += 1
+                    if x[0] > trim[k1][k2]:
+                        counter += 1
+                        data[k1][k2][k3].remove(x)
+            print (k1,k2), counter, "of", total, "trimmed"
+
+    # Permute data from (time, rate) to just rate
+    for k1 in data.keys():
+        for k2 in data[k1].keys():
+            for k3 in data[k1][k2].keys():
+                for x in range(len(data[k1][k2][k3])):
+                    data[k1][k2][k3][x] = \
+                            data[k1][k2][k3][x][1]
 
     open(datapath + "/" + "result_none_disk_local", "w").write( "\n".join(data["none"]["disk"]["local"]))
     open(datapath + "/" + "result_none_disk_remote", "w").write("\n".join(data["none"]["disk"]["remote"]))

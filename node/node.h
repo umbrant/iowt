@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
@@ -21,8 +22,10 @@
 #include <netinet/tcp.h>
 
 #include <sys/epoll.h>
+#include <sys/ipc.h>
 #include <sys/mman.h>
 #include <sys/sendfile.h>
+#include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -65,24 +68,24 @@ int NUM_SERVERS;
 const char ** SERVERS;
 
 // Directory where test files are stored
-const char * FILE_DIR;//[] = "/home/andrew/Downloads/enwiki";
+const char * FILE_DIR;
 
 // Set of files mmap'd into memory
-/*
-typedef struct memfile {
-	char* buffer;
-	size_t size;
-} memfile_t;
-*/
 typedef struct iovec iovec_t;
 struct mmapfiles {
-	iovec_t raw_64;
+	iovec_t none_64;
 	iovec_t gzip_64;
 	iovec_t lzo_64;
-	iovec_t raw_256;
+	iovec_t none_256;
 	iovec_t gzip_256;
 	iovec_t lzo_256;
 } mmapfiles;
+
+// Set of shared memory keys
+#define SHM_NONE_64 1200
+#define SHM_GZIP_64 1201
+#define SHM_NONE_256 1300
+#define SHM_GZIP_256 1301
 
 // Strut and enums for defining a request
 typedef struct request { 
@@ -132,7 +135,7 @@ int memory_request(request_t request, iovec_t* memfile);
 int get_request_filename(request_t request, char* filename);
 void init_filenames();
 void init_mmap_files();
-void mmap_file(char* filename, iovec_t* memfile);
+void mmap_file(char* filename, iovec_t* memfile, int shmkey);
 
 // Client and benchmark functions
 int send_request(request_t request, int destination);

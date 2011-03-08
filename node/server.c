@@ -266,10 +266,10 @@ int memory_request(request_t request, iovec_t* memfile)
 	int c = request.compression;
 	if(c == COMPRESSION_NONE) {
 		if(s == SIZE_64) {
-			*memfile = mmapfiles.raw_64;
+			*memfile = mmapfiles.none_64;
 		}
 		if(s == SIZE_256) {
-			*memfile = mmapfiles.raw_256;
+			*memfile = mmapfiles.none_256;
 		}
 	}
 	else if(c == COMPRESSION_GZIP) {
@@ -396,11 +396,11 @@ void init_mmap_files()
 	// Lock the 64M files
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/64/none/xcs");
-	mmap_file(filename, &mmapfiles.raw_64);
+	mmap_file(filename, &mmapfiles.none_64, SHM_NONE_64);
 	
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/64/gzip/xcs.gz");
-	mmap_file(filename, &mmapfiles.gzip_64);
+	mmap_file(filename, &mmapfiles.gzip_64, SHM_GZIP_64);
 
     /*
 	strcpy(filename, FILE_DIR);  
@@ -412,7 +412,7 @@ void init_mmap_files()
 	/*
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/256/none/ak");
-	mmap_file(filename, &mmapfiles.raw_256);
+	mmap_file(filename, &mmapfiles.nona_256);
 
 	strcpy(filename, FILE_DIR);  
 	strcat(filename, "/256/gzip/ak.gz");
@@ -425,7 +425,7 @@ void init_mmap_files()
 }
 
 
-void mmap_file(char* filename, iovec_t* memfile)
+void mmap_file(char* filename, iovec_t* memfile, int shmkey)
 {
 	PRINTF("mmap'ing file %s\n", filename);
 
@@ -457,18 +457,24 @@ void mmap_file(char* filename, iovec_t* memfile)
         fprintf(stderr, "Could not madvise mmap'd pages! Performance might suffer.\n");
     }
 
+    // Stick it in shared memory too
+    int shmid = shmget(shmkey, size, IPC_CREAT|0444);
+    if(shmid < 0) {
+        printf("You might need to increase shared memory limits:\n");
+        printf("echo 1073741824 > /proc/sys/kernel/shmmax\n");
+        error("shmget");
+    }
+    char* shmbuffer = shmat(shmid, NULL, SHM_RDONLY);
+    if(shmbuffer < 0) {
+        error("shmat");
+    }
+    // mlock it to keep it in memory
+    if(mlock(shmbuffer, size)) {
+        error("mlock");
+    }
+
     memfile->iov_base = buffer;
     memfile->iov_len = size;
-
-    // Forcibly touch each page (please don't get optimized out)
-    /*
-    int pagesize = 4096;
-    int i;
-    char temp = 0;
-    for(i=0; i<size/pagesize; i++) {
-		temp += memfile->buffer[i*pagesize];
-    }
-    */
 
     close(fd);
 }

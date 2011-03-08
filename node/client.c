@@ -271,6 +271,22 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     long start_usec, end_usec;
     pthread_t workers[num_threads];
 
+
+    // Get local machine's eth0 ip address
+    char ipaddress[INET_ADDRSTRLEN];
+    struct ifaddrs *ifaddress = NULL;
+    getifaddrs(&ifaddress);
+    for(getifaddrs(&ifaddress); ifaddress != NULL; ifaddress = ifaddress->ifa_next) {
+        if(ifaddress->ifa_addr->sa_family == AF_INET) {
+            if(!strcmp(ifaddress->ifa_name, "eth0")) {
+                void* tmp_ptr = &((struct sockaddr_in *)ifaddress->ifa_addr)->sin_addr;
+                inet_ntop(AF_INET, tmp_ptr, ipaddress, INET_ADDRSTRLEN);
+                break; 
+            }
+        }
+    }
+    printf("%s\n", ipaddress);
+
     print_request(request);
     printf("num requests: %d, num threads: %d\n", num_requests, num_threads);
     printf("\n");
