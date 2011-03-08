@@ -84,8 +84,13 @@ struct mmapfiles {
 // Set of shared memory keys
 #define SHM_NONE_64 1200
 #define SHM_GZIP_64 1201
+#define SHM_LZO_64 1202
 #define SHM_NONE_256 1300
 #define SHM_GZIP_256 1301
+#define SHM_LZO_256 1302
+
+// eth0 ip address
+char ipaddress[INET_ADDRSTRLEN];
 
 // Strut and enums for defining a request
 typedef struct request { 
@@ -142,6 +147,9 @@ int send_request(request_t request, int destination);
 int read_uncompressed(int sockfd, char* buffer, int bufsize);
 int read_gzip(int sockfd, char* buffer, int bufsize);
 int read_lzo(int sockfd, char* buffer, int bufsize);
+int read_local_uncompressed(int shmid, char* buffer, int bufsize);
+int read_local_gzip(int shmid, char* buffer, int bufsize);
+int read_local_lzo(int shmid, char* buffer, int bufsize);
 long get_time_usecs();
 void benchmark(request_t request, const int num_requests, const int num_threads);
 void* benchmark_worker(void* num_ptr);

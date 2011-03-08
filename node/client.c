@@ -110,6 +110,83 @@ int send_request(request_t request, int destination)
 }
 
 
+int send_local_request(request_t request)
+{
+    long start_usecs, end_usecs;
+
+    // Used for aggregating printf output until the end
+    char outstr[1024];
+    memset(outstr, '\0', 1024);
+
+    int megabytes = 0;
+    int shmkey = 0;
+    if(request.size == SIZE_64) {
+        megabytes = 64;
+        switch(request.compression) {
+            case COMPRESSION_NONE:
+                shmkey = SHM_NONE_64;
+                break;
+            case COMPRESSION_GZIP:
+                shmkey = SHM_GZIP_64;
+                break;
+            case COMPRESSION_LZO:
+                shmkey = SHM_LZO_64;
+                break;
+        }
+    }
+    else if(request.size == SIZE_256) {
+        megabytes = 256;
+        switch(request.compression) {
+            case COMPRESSION_NONE:
+                shmkey = SHM_NONE_256;
+                break;
+            case COMPRESSION_GZIP:
+                shmkey = SHM_GZIP_256;
+                break;
+            case COMPRESSION_LZO:
+                shmkey = SHM_LZO_256;
+                break;
+        }
+    }
+
+    int bufsize = megabytes * (1<<20);
+    char * buffer = (char*)calloc(1, bufsize);
+
+    start_usecs = get_time_usecs();
+
+    sprintf(outstr, "%lu, Host %s, ", start_usecs, ipaddress);
+    //strcat(outstr, "Sending request...");
+
+    int bytes_read = 0;
+    // Read the response, stream decompression if necessary
+    switch(request.compression) {
+        case COMPRESSION_NONE:
+            bytes_read = read_local_uncompressed(shmkey, buffer, bufsize);
+            break;
+        case COMPRESSION_GZIP:
+            bytes_read = read_local_gzip(shmkey, buffer, bufsize);
+            break;
+        case COMPRESSION_LZO:
+            bytes_read = read_local_lzo(shmkey, buffer, bufsize);
+            break;
+    }
+
+    end_usecs = get_time_usecs();
+
+    free(buffer);
+
+    double diff_secs = (double)(end_usecs - start_usecs) / (double)1000000;
+    double request_size_mb = (double)bytes_read / (double)(1<<20);
+
+    sprintf(outstr+strlen(outstr), "rate: %f, size: %d\n", 
+            request_size_mb/diff_secs, bytes_read);
+
+    printf("%s", outstr);
+
+    return 0;
+}
+
+
 /* 
  * We can read directly into the final output buffer, since
  * no decompression needs to be done.
@@ -131,6 +208,21 @@ int read_uncompressed(int sockfd, char* buffer, int bufsize)
     return bytes_read;
 }
 
+// This just does a straight copy into the buffer
+int read_local_uncompressed(int shmkey, char* buffer, int bufsize) {
+    int shmid = shmget(shmkey, bufsize, 0444);
+    if(shmid < 0) {
+        error("read_local_uncompressed shmget");
+    }
+    char* source = shmat(shmid, NULL, SHM_RDONLY);
+    if(shmat < 0) {
+        error("read_local_uncompressed shmat");
+    }
+    memcpy(buffer, source, bufsize);
+    shmdt(source);
+
+    return bufsize;
+}
 
 /*
  * gzip decompression, courtesy of zlib.
@@ -148,6 +240,9 @@ int read_gzip(int sockfd, char* buffer, int bufsize)
     return bytes_read;
 }
 
+int read_local_gzip(int shmid, char* buffer, int bufsize) {
+    return bufsize;
+}
 
 /*
  * LZO decompression, courtesy of liblzo2.
@@ -193,6 +288,10 @@ int read_lzo(int sockfd, char* buffer, int bufsize)
     free(temp_buffer);
 
     return (int)bytes_read;
+}
+
+int read_local_lzo(int shmid, char* buffer, int bufsize) {
+    return bufsize;
 }
 
 void* benchmark_worker(void* num_ptr)
@@ -254,7 +353,11 @@ void* benchmark_worker(void* num_ptr)
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
     	int rv = 0;
-    	// We do retries if it fails the first time
+    	// Do a shm read if we're going to ourself
+    	if(!strcmp(ipaddress, SERVERS[destination])) {
+            rv = send_local_request(bench.request);    
+    	}
+    	// Else, we go out to the remote server, with retries
     	do {
         	rv = send_request(bench.request, destination);
         } while(rv);
@@ -273,7 +376,7 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
 
 
     // Get local machine's eth0 ip address
-    char ipaddress[INET_ADDRSTRLEN];
+    //char ipaddress[INET_ADDRSTRLEN];
     struct ifaddrs *ifaddress = NULL;
     getifaddrs(&ifaddress);
     for(getifaddrs(&ifaddress); ifaddress != NULL; ifaddress = ifaddress->ifa_next) {
