@@ -67,11 +67,12 @@ int send_request(request_t request, int destination)
     inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
             s, sizeof(s));
     freeaddrinfo(result); // Have to free the linked list of addrs
-    
-    sprintf(outstr, "Host %s, ", s);
-    //strcat(outstr, "Sending request...");
 
     start_usecs = get_time_usecs();
+
+    sprintf(outstr, "%lu, Host %s, ", start_usecs, s);
+    //strcat(outstr, "Sending request...");
+
 
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
@@ -99,7 +100,7 @@ int send_request(request_t request, int destination)
     double request_size_mb = (double)bytes_read / (double)(1<<20);
 
     //sprintf(outstr+strlen(outstr), "response was size %d\n", bytes_read);
-    sprintf(outstr+strlen(outstr), "rate: %f size: %d\n", 
+    sprintf(outstr+strlen(outstr), "rate: %f, size: %d\n", 
             request_size_mb/diff_secs, bytes_read);
 
     printf("%s", outstr);
