@@ -155,7 +155,7 @@ int send_local_request(request_t request)
     start_usecs = get_time_usecs();
 
     sprintf(outstr, "%lu, Host %s, ", start_usecs, ipaddress);
-    //strcat(outstr, "Sending request...");
+    //sprintf(outstr, "%lu, Host %s, ", start_usecs, "local");
 
     int bytes_read = 0;
     // Read the response, stream decompression if necessary
@@ -358,9 +358,11 @@ void* benchmark_worker(void* num_ptr)
             rv = send_local_request(bench.request);    
     	}
     	// Else, we go out to the remote server, with retries
-    	do {
-        	rv = send_request(bench.request, destination);
-        } while(rv);
+    	else {
+    	    do {
+        	    rv = send_request(bench.request, destination);
+            } while(rv);
+        }
     }
 	free(num_ptr);
     return 0;
