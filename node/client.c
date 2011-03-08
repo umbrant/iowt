@@ -194,7 +194,6 @@ int read_lzo(int sockfd, char* buffer, int bufsize)
     return (int)bytes_read;
 }
 
-
 void* benchmark_worker(void* num_ptr)
 {
 	benchmark_t bench = *(benchmark_t*)num_ptr;
@@ -225,27 +224,26 @@ void* benchmark_worker(void* num_ptr)
     strcat(salt, hostname_trimmed);
     strcat(salt, "$");
 
-    struct crypt_data cdata;
-    struct random_data rdata;
-
-    char *hash = crypt_r(myhostname, salt, &cdata);
+    char *hash = crypt(myhostname, salt);
     unsigned int hash_sum = time(NULL); // artificial sum, just need something
     int hash_uint_len = strlen(hash)/(sizeof(unsigned int));
     unsigned int* hash_uint = (unsigned int*)hash;
     for(i=0; i<hash_uint_len; i++) {
         hash_sum ^= hash_uint[i];
     }
-    srandom_r(hash_sum, &rdata);
+
+    srandom(hash_sum);
 
     char rand_str[100];
-    cdata.initialized = 0;
     for(i=0; i<bench.iterations; i++) {
         // Generate a new hash for the actual selection
         // with the thread's unique salt
         memset(rand_str, '\0', 100);
         sprintf(rand_str, "%lu", random());
         unsigned int destination = time(NULL);
-        hash = crypt_r(rand_str, salt, &cdata);
+        pthread_mutex_lock(&crypt_mutex);
+        hash = crypt(rand_str, salt);
+        pthread_mutex_unlock(&crypt_mutex);
         hash_uint = (unsigned int*)hash;
         hash_uint_len = strlen(hash)/(sizeof(unsigned int));
         int k;

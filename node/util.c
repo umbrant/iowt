@@ -14,6 +14,8 @@ int main (int argc, char *argv[])
     filecount_64_1 = 'a';
     filecount_64_2 = 'a';
     filecount_256 = 'a';
+    // Init crypt mutex
+    pthread_mutex_init(&crypt_mutex, NULL);
 
 	request_t request;
 	int dest;

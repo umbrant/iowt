@@ -119,6 +119,9 @@ char filecount_64_1;
 char filecount_64_2;
 char filecount_256;
 
+// Crypt is not reentrant, slap a mutex around it
+pthread_mutex_t crypt_mutex;
+
 // Main and server functions
 int main(int argc, char *argv[]);
 void* manager_main(void *threadid);
