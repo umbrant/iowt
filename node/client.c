@@ -4,6 +4,11 @@
 
 int send_request(request_t request, int destination)
 {
+    // Do a shm read instead if we're going to ourself
+    if(!strcmp(ipaddress, SERVERS[destination])) {
+        return send_local_request(request);    
+    }
+
     int sockfd, n, rv;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -71,8 +76,6 @@ int send_request(request_t request, int destination)
     start_usecs = get_time_usecs();
 
     sprintf(outstr, "%lu, Host %s, ", start_usecs, s);
-    //strcat(outstr, "Sending request...");
-
 
     n = send(sockfd, &request, sizeof(request_t), 0);
     if (n < 0) 
@@ -99,7 +102,6 @@ int send_request(request_t request, int destination)
     double diff_secs = (double)(end_usecs - start_usecs) / (double)1000000;
     double request_size_mb = (double)bytes_read / (double)(1<<20);
 
-    //sprintf(outstr+strlen(outstr), "response was size %d\n", bytes_read);
     sprintf(outstr+strlen(outstr), "rate: %f, size: %d\n", 
             request_size_mb/diff_secs, bytes_read);
 
@@ -112,6 +114,7 @@ int send_request(request_t request, int destination)
 
 int send_local_request(request_t request)
 {
+    printf("send_local_request\n");
     long start_usecs, end_usecs;
 
     // Used for aggregating printf output until the end
@@ -210,6 +213,14 @@ int read_uncompressed(int sockfd, char* buffer, int bufsize)
 
 // This just does a straight copy into the buffer
 int read_local_uncompressed(int shmkey, char* buffer, int bufsize) {
+    printf("Doing a read_local_uncompressed\n");
+    long start_usecs, end_usecs;
+    double diff_secs, request_size_mb;
+    
+    request_size_mb = (double)bufsize / (double)(1<<20);
+
+    start_usecs = get_time_usecs();
+
     int shmid = shmget(shmkey, bufsize, 0444);
     if(shmid < 0) {
         error("read_local_uncompressed shmget");
@@ -220,6 +231,11 @@ int read_local_uncompressed(int shmkey, char* buffer, int bufsize) {
     }
     memcpy(buffer, source, bufsize);
     shmdt(source);
+
+    end_usecs = get_time_usecs();
+
+    diff_secs = (double)(end_usecs - start_usecs) / (double)1000000;
+    printf("Rate: %f, size: %d\n", request_size_mb / diff_secs, bufsize);
 
     return bufsize;
 }
@@ -353,16 +369,9 @@ void* benchmark_worker(void* num_ptr)
     	// Choose a random server from SERVERS to connect to
     	destination = destination%NUM_SERVERS;
     	int rv = 0;
-    	// Do a shm read if we're going to ourself
-    	if(!strcmp(ipaddress, SERVERS[destination])) {
-            rv = send_local_request(bench.request);    
-    	}
-    	// Else, we go out to the remote server, with retries
-    	else {
-    	    do {
-        	    rv = send_request(bench.request, destination);
-            } while(rv);
-        }
+    	do {
+        	rv = send_request(bench.request, destination);
+        } while(rv);
     }
 	free(num_ptr);
     return 0;
@@ -377,19 +386,6 @@ void benchmark(request_t request, const int num_requests, const int num_threads)
     pthread_t workers[num_threads];
 
 
-    // Get local machine's eth0 ip address
-    //char ipaddress[INET_ADDRSTRLEN];
-    struct ifaddrs *ifaddress = NULL;
-    getifaddrs(&ifaddress);
-    for(getifaddrs(&ifaddress); ifaddress != NULL; ifaddress = ifaddress->ifa_next) {
-        if(ifaddress->ifa_addr->sa_family == AF_INET) {
-            if(!strcmp(ifaddress->ifa_name, "eth0")) {
-                void* tmp_ptr = &((struct sockaddr_in *)ifaddress->ifa_addr)->sin_addr;
-                inet_ntop(AF_INET, tmp_ptr, ipaddress, INET_ADDRSTRLEN);
-                break; 
-            }
-        }
-    }
     printf("%s\n", ipaddress);
 
     print_request(request);

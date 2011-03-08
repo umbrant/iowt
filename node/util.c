@@ -7,18 +7,23 @@ int main (int argc, char *argv[])
     // Read and initialize configuration settings
     init_config();
 
-    // Init the mutexs used for determining filename
-    pthread_mutex_init(&filecount_64_mutex, NULL);
-    pthread_mutex_init(&filecount_256_mutex, NULL);
-    // Init their counters too
-    filecount_64_1 = 'a';
-    filecount_64_2 = 'a';
-    filecount_256 = 'a';
-    // Init crypt mutex
-    pthread_mutex_init(&crypt_mutex, NULL);
 
 	request_t request;
 	int dest;
+
+    // Get local machine's eth0 ip address
+    struct ifaddrs *ifaddress = NULL;
+    getifaddrs(&ifaddress);
+    for(getifaddrs(&ifaddress); ifaddress != NULL; ifaddress = ifaddress->ifa_next) {
+        if(ifaddress->ifa_addr->sa_family == AF_INET) {
+            if(!strcmp(ifaddress->ifa_name, "eth0")) {
+                void* tmp_ptr = &((struct sockaddr_in *)ifaddress->ifa_addr)->sin_addr;
+                inet_ntop(AF_INET, tmp_ptr, ipaddress, INET_ADDRSTRLEN);
+                break; 
+            }
+        }
+    }
+
 
     if(argc < 3) {
         usage();
@@ -26,6 +31,13 @@ int main (int argc, char *argv[])
     }
     // Server
     if(strcmp(argv[1],"server") == 0) {
+        // Init the mutexs used for determining filename
+        pthread_mutex_init(&filecount_64_mutex, NULL);
+        pthread_mutex_init(&filecount_256_mutex, NULL);
+        // Init their counters too
+        filecount_64_1 = 'a';
+        filecount_64_2 = 'a';
+        filecount_256 = 'a';
         NUM_WORKER_THREADS = atoi(argv[2]);
         pthread_t manager;
         // Create manager thread, which spans more handlers
@@ -43,6 +55,8 @@ int main (int argc, char *argv[])
     }
     // Benchmark
     else if(strcmp(argv[1], "benchmark") == 0) {
+        // Init crypt mutex
+        pthread_mutex_init(&crypt_mutex, NULL);
         if(argc != 7) {
             usage();
         } else {

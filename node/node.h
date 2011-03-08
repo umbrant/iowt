@@ -147,6 +147,7 @@ int send_request(request_t request, int destination);
 int read_uncompressed(int sockfd, char* buffer, int bufsize);
 int read_gzip(int sockfd, char* buffer, int bufsize);
 int read_lzo(int sockfd, char* buffer, int bufsize);
+int send_local_request(request_t request);
 int read_local_uncompressed(int shmid, char* buffer, int bufsize);
 int read_local_gzip(int shmid, char* buffer, int bufsize);
 int read_local_lzo(int shmid, char* buffer, int bufsize);
