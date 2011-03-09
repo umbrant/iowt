@@ -2,33 +2,34 @@ import java.io.*;
 import java.net.*;
 public class Requester{
 	Socket requestSocket;
-	ObjectOutputStream out;
- 	ObjectInputStream in;
- 	String message;
-	Requester(){}
+	ByteArrayOutputStream out;
+	ByteArrayInputStream in;
+
+	byte[] buffer = new byte[100];
+	Requester()
+	{
+		out = new ByteArrayOutputStream();
+		in = new ByteArrayInputStream(buffer);
+	}
+
 	void run()
 	{
 		try{
-			//1. creating a socket to connect to the server
 			requestSocket = new Socket("localhost", 2004);
 			System.out.println("Connected to localhost in port 2004");
-			//2. get Input and Output streams
-			out = new ObjectOutputStream(requestSocket.getOutputStream());
+			//out = new ByteArrayOutputStream()requestSocket.getOutputStream());
+			//in = new ByteArrayInputStream(requestSocket.getInputStream());
 			out.flush();
-			in = new ObjectInputStream(requestSocket.getInputStream());
 			//3: Communicating with the server
-			do{
-				try{
-					message = (String)in.readObject();
-					System.out.println("server>" + message);
-					sendMessage("Hi my server");
-					message = "bye";
-					sendMessage(message);
-				}
-				catch(ClassNotFoundException classNot){
-					System.err.println("data received in unknown format");
-				}
-			}while(!message.equals("bye"));
+			String request = "Hello server!";
+			sendMessage(request.getBytes());
+
+			int available = in.available();
+			if(available > 100) {
+				available = 100;
+			}
+			int bytes_read = in.read(buffer, 0, available);
+			System.out.println("server>" + buffer);
 		}
 		catch(UnknownHostException unknownHost){
 			System.err.println("You are trying to connect to an unknown host!");
@@ -48,12 +49,13 @@ public class Requester{
 			}
 		}
 	}
-	void sendMessage(String msg)
+	void sendMessage(byte[] msg)
 	{
 		try{
-			out.writeObject(msg);
+			out.write(msg);
+			out.writeTo(requestSocket.getOutputStream());
 			out.flush();
-			System.out.println("client>" + msg);
+			System.out.println("server>" + msg);
 		}
 		catch(IOException ioException){
 			ioException.printStackTrace();
