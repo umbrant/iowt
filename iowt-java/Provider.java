@@ -3,69 +3,117 @@ import java.net.*;
 public class Provider{
 	ServerSocket providerSocket;
 	Socket connection = null;
-	ByteArrayOutputStream out;
-	ByteArrayInputStream in;
+	DataOutputStream out;
+	DataInputStream in;
 
 	byte[] buffer = new byte[100];
+	byte[] filebytes;
 
 	Provider()
 	{
-		out = new ByteArrayOutputStream();
-		in = new ByteArrayInputStream(buffer);
+		try {
+			providerSocket = new ServerSocket(2004, 10);
+		} catch(IOException e) {
+			e.printStackTrace();
+			System.exit(-1);
+		}
+	}
+	void close()
+	{
+		try {
+			providerSocket.close();
+		} catch(IOException e) {
+			e.printStackTrace();
+			System.exit(-1);
+		}
 	}
 	void run()
 	{
-		while(true) {
+		try{
+			System.out.println("Waiting for connection");
+			connection = providerSocket.accept();
+			System.out.println("Connection received from " + connection.getInetAddress().getHostName());
+			out = new DataOutputStream(connection.getOutputStream());
+			in = new DataInputStream(connection.getInputStream());
+			//out.flush();
+
+			// Read in the message from the client
+			int available = in.available();
+			if(available > 100) {
+				available = 100;
+			}
+			int bytes_read = in.read(buffer, 0, available);
+			System.out.println("client>" + buffer);
+
+			// Write a reply
+			sendMessage(filebytes);
+		}
+		catch(IOException ioException){
+			ioException.printStackTrace();
+		}
+		finally{
+			//4: Closing connection
 			try{
-				providerSocket = new ServerSocket(2004, 10);
-				System.out.println("Waiting for connection");
-				connection = providerSocket.accept();
-				System.out.println("Connection received from " + connection.getInetAddress().getHostName());
 				out.flush();
-
-				// Read in the message from the client
-				int available = in.available();
-				if(available > 100) {
-					available = 100;
-				}
-				int bytes_read = in.read(buffer, 0, available);
-				System.out.println("client>" + buffer);
-
-				// Write a reply
-				String msg = "bye";
-				sendMessage(msg.getBytes());
+				Thread.sleep(10);
+				in.close();
+				out.close();
+				connection.close();
 			}
 			catch(IOException ioException){
 				ioException.printStackTrace();
 			}
-			finally{
-				//4: Closing connection
-				try{
-					in.close();
-					out.close();
-					providerSocket.close();
-				}
-				catch(IOException ioException){
-					ioException.printStackTrace();
-				}
+			catch(InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 	}
 	void sendMessage(byte[] msg)
 	{
 		try{
-			out.write(msg);
-			out.writeTo(connection.getOutputStream());
+			out.write(msg, 0, msg.length);
 			out.flush();
-			System.out.println("server>" + msg);
+			System.out.println("Sent " + msg.length + " bytes");
 		}
 		catch(IOException ioException){
 			ioException.printStackTrace();
 		}
 	}
+	void getBytesFromFile(File file) throws IOException {
+        InputStream is = new FileInputStream(file);
+
+        // Get the size of the file
+        long length = file.length();
+        // Create the byte array to hold the data
+        filebytes = new byte[(int)length];
+        // Read in the bytes
+        int offset = 0;
+        int numRead = 0;
+        while (offset < filebytes.length
+               	&& (numRead=is.read(filebytes, offset, filebytes.length-offset)) >= 0)
+        {
+            offset += numRead;
+        }
+        // Ensure all the bytes have been read in
+        if (offset < filebytes.length) {
+            throw new IOException("Could not completely read file "+file.getName());
+        }
+
+        // Close the input stream and return bytes
+        is.close();
+    }
 	public static void main(String args[])
 	{
-		Provider server = new Provider();
-		server.run();
+		File f = new File("/home/awang/Downloads/enwiki/64/none/xaa");
+		while(true) {
+			Provider server = new Provider();
+			try {
+				server.getBytesFromFile(f);
+			} catch(IOException e) {
+				e.printStackTrace();
+			}
+			server.run();
+			server.close();
+		}
 	}
 }

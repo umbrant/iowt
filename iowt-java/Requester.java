@@ -2,14 +2,13 @@ import java.io.*;
 import java.net.*;
 public class Requester{
 	Socket requestSocket;
-	ByteArrayOutputStream out;
-	ByteArrayInputStream in;
+	DataOutputStream out;
+	DataInputStream in;
 
-	byte[] buffer = new byte[100];
+	static final int SIZE = 67108864;
+	byte[] buffer = new byte[SIZE];
 	Requester()
 	{
-		out = new ByteArrayOutputStream();
-		in = new ByteArrayInputStream(buffer);
 	}
 
 	void run()
@@ -17,19 +16,40 @@ public class Requester{
 		try{
 			requestSocket = new Socket("localhost", 2004);
 			System.out.println("Connected to localhost in port 2004");
-			//out = new ByteArrayOutputStream()requestSocket.getOutputStream());
-			//in = new ByteArrayInputStream(requestSocket.getInputStream());
+			out = new DataOutputStream(requestSocket.getOutputStream());
+			in = new DataInputStream(requestSocket.getInputStream());
 			out.flush();
 			//3: Communicating with the server
 			String request = "Hello server!";
 			sendMessage(request.getBytes());
 
 			int available = in.available();
-			if(available > 100) {
-				available = 100;
+			if(available > SIZE) {
+				available = SIZE;
 			}
-			int bytes_read = in.read(buffer, 0, available);
-			System.out.println("server>" + buffer);
+			int bytes_read = 0;
+			long start_time = System.nanoTime();
+			while(bytes_read < SIZE) {
+				try {
+					bytes_read += in.read(buffer, bytes_read, SIZE-bytes_read);
+				} catch(EOFException eof) {
+					System.out.println("EOF");
+					System.exit(-1);
+				} catch(SocketException se) {
+					System.out.println("ERROR: short read " + bytes_read + 
+							" of expected " + SIZE + " bytes!");
+					se.printStackTrace();
+					break;
+				}
+			}
+			long end_time = System.nanoTime();
+			double request_mbs = bytes_read / Math.pow(2,20);
+			double diff_secs = (double)(end_time - start_time) / (double)1000000000;
+
+			double rate = request_mbs / diff_secs;
+
+			//System.out.println("server " + bytes_read  + ">" + buffer);
+			System.out.println("Rate: " + rate);
 		}
 		catch(UnknownHostException unknownHost){
 			System.err.println("You are trying to connect to an unknown host!");
@@ -52,10 +72,8 @@ public class Requester{
 	void sendMessage(byte[] msg)
 	{
 		try{
-			out.write(msg);
-			out.writeTo(requestSocket.getOutputStream());
+			out.write(msg, 0, msg.length);
 			out.flush();
-			System.out.println("server>" + msg);
 		}
 		catch(IOException ioException){
 			ioException.printStackTrace();
