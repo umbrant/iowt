@@ -55,7 +55,7 @@ public class Provider{
 			//4: Closing connection
 			try{
 				out.flush();
-				Thread.sleep(10);
+				Thread.sleep(100);
 				in.close();
 				out.close();
 				connection.close();
