@@ -12,7 +12,7 @@ public class Provider{
 	Provider()
 	{
 		try {
-			providerSocket = new ServerSocket(2004, 10);
+			providerSocket = new ServerSocket(8002, 10);
 		} catch(IOException e) {
 			e.printStackTrace();
 			System.exit(-1);

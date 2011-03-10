@@ -15,7 +15,7 @@ public class Requester{
 	void run(String host)
 	{
 		try{
-			requestSocket = new Socket(host, 2004);
+			requestSocket = new Socket(host, 8002);
 			System.out.println("Connected to localhost in port 2004");
 			out = new DataOutputStream(requestSocket.getOutputStream());
 			in = new DataInputStream(requestSocket.getInputStream());
