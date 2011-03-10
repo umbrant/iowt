@@ -51,6 +51,7 @@ public class Requester{
 
 			//System.out.println("server " + bytes_read  + ">" + buffer);
 			System.out.println("Rate: " + rate);
+			Thread.sleep(10);
 		}
 		catch(UnknownHostException unknownHost){
 			System.err.println("You are trying to connect to an unknown host!");
