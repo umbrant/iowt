@@ -6,15 +6,16 @@ public class Requester{
 	DataInputStream in;
 
 	static final int SIZE = 67108864;
+	//static final int SIZE = 268435456;
 	byte[] buffer = new byte[SIZE];
 	Requester()
 	{
 	}
 
-	void run()
+	void run(String host)
 	{
 		try{
-			requestSocket = new Socket("localhost", 2004);
+			requestSocket = new Socket(host, 2004);
 			System.out.println("Connected to localhost in port 2004");
 			out = new DataOutputStream(requestSocket.getOutputStream());
 			in = new DataInputStream(requestSocket.getInputStream());
@@ -82,7 +83,7 @@ public class Requester{
 	public static void main(String args[])
 	{
 		Requester client = new Requester();
-		client.run();
+		client.run(args[0]);
 	}
 }
 

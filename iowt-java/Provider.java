@@ -104,7 +104,7 @@ public class Provider{
     }
 	public static void main(String args[])
 	{
-		File f = new File("/home/awang/Downloads/enwiki/64/none/xaa");
+		File f = new File(args[0]);
 		while(true) {
 			Provider server = new Provider();
 			try {
