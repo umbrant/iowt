@@ -69,11 +69,9 @@ class RequestThread extends Thread {
 					System.out.println("EOF");
 					System.exit(-1);
 				} catch(SocketException se) {
-					/*
 					System.out.println("ERROR: short read " + bytes_read + 
 							" of expected " + SIZE + " bytes!");
 					se.printStackTrace();
-					*/
 					return -1;
 				}
 			}
@@ -119,15 +117,17 @@ public class Requester {
 	public static void main(String args[])
 	{
 		String host = args[0];
-		int numThreads = Integer.parseInt(args[1]);
-		int numRequests = Integer.parseInt(args[2]);
+		int numRequests = Integer.parseInt(args[1]);
+		int numThreads = Integer.parseInt(args[2]);
+
+		int requestsPerThread = numRequests / numThreads;
 
 		RequestThread[] threads = new RequestThread[numThreads];
 		for(int i=0; i<threads.length; i++) {
 			threads[i] = new RequestThread();
 		}
 		for(int i=0; i<threads.length; i++) {
-			threads[i].run(args[0], numRequests);
+			threads[i].run(args[0], requestsPerThread);
 		}
 	}
 
