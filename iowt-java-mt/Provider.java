@@ -3,19 +3,15 @@ import java.net.*;
 public class Provider{
 	ServerSocket providerSocket;
 	Socket connection = null;
-	DataOutputStream out;
-	DataInputStream in;
 
-	byte[] buffer = new byte[100];
 	byte[] filebytes;
 
-	Provider()
+	Provider(String filename)
 	{
 		try {
-			providerSocket = new ServerSocket(8002, 10);
+			getBytesFromFile(new File(filename));
 		} catch(IOException e) {
 			e.printStackTrace();
-			System.exit(-1);
 		}
 	}
 	void close()
@@ -29,54 +25,25 @@ public class Provider{
 	}
 	void run()
 	{
-		try{
-			System.out.println("Waiting for connection");
-			connection = providerSocket.accept();
-			System.out.println("Connection received from " + connection.getInetAddress().getHostName());
-			out = new DataOutputStream(connection.getOutputStream());
-			in = new DataInputStream(connection.getInputStream());
-			//out.flush();
-
-			// Read in the message from the client
-			int available = in.available();
-			if(available > 100) {
-				available = 100;
-			}
-			int bytes_read = in.read(buffer, 0, available);
-			System.out.println("client>" + buffer);
-
-			// Write a reply
-			sendMessage(filebytes);
+		try {
+			providerSocket = new ServerSocket(8002, 10);
+		} catch(IOException e) {
+			e.printStackTrace();
+			System.exit(-1);
 		}
-		catch(IOException ioException){
-			ioException.printStackTrace();
-		}
-		finally{
-			//4: Closing connection
-			try{
-				out.flush();
-				Thread.sleep(1);
-				in.close();
-				out.close();
-				connection.close();
+		while(true) {
+			try {
+				System.out.println("Waiting for connection");
+				connection = providerSocket.accept();
+				System.out.println("Connection received from " + connection.getInetAddress().getHostName());
+
+				new Thread(
+            			new WorkerRunnable(connection, filebytes)
+        				).start();
 			}
 			catch(IOException ioException){
 				ioException.printStackTrace();
 			}
-			catch(InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	void sendMessage(byte[] msg)
-	{
-		try{
-			out.write(msg, 0, msg.length);
-			out.flush();
-			System.out.println("Sent " + msg.length + " bytes");
-		}
-		catch(IOException ioException){
-			ioException.printStackTrace();
 		}
 	}
 	void getBytesFromFile(File file) throws IOException {
@@ -104,16 +71,44 @@ public class Provider{
     }
 	public static void main(String args[])
 	{
-		File f = new File(args[0]);
-		while(true) {
-			Provider server = new Provider();
-			try {
-				server.getBytesFromFile(f);
-			} catch(IOException e) {
-				e.printStackTrace();
-			}
-			server.run();
-			server.close();
-		}
+		Provider server = new Provider(args[0]);
+		server.run();
 	}
 }
+
+class WorkerRunnable implements Runnable {
+
+    protected Socket clientSocket = null;
+    byte[] filebytes = null;
+    protected String serverText   = null;
+
+    public WorkerRunnable(Socket clientSocket, byte[] filebytes) {
+        this.clientSocket = clientSocket;
+        this.filebytes = filebytes;
+    }
+
+    public void run() {
+        try {
+            InputStream input  = clientSocket.getInputStream();
+            OutputStream output = clientSocket.getOutputStream();
+			// Read in the message from the client
+			byte[] buffer = new byte[100];
+			int available = input.available();
+			if(available > 100) {
+				available = 100;
+			}
+			int bytes_read = input.read(buffer, 0, available);
+			System.out.println("client>" + buffer);
+			// Write a reply
+            output.write(filebytes, 0, filebytes.length);
+            output.flush();
+            output.close();
+            input.close();
+            System.out.println("Sent " + filebytes.length + " bytes");
+        } catch (IOException e) {
+            //report exception somewhere.
+            e.printStackTrace();
+        }
+    }
+}
+
