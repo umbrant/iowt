@@ -11,6 +11,17 @@ class RequestThread extends Thread {
 	//static final int SIZE = 268435456;
 	byte[] buffer = new byte[SIZE];
 
+	String host;
+	int numRequests;
+	int threadid;
+
+	RequestThread(String host, int numRequests, int threadid)
+	{
+		this.host = host;
+		this.numRequests = numRequests;
+		this.threadid = threadid;
+	}
+
 	void connect(String host)
 	{
 		try {
@@ -24,7 +35,7 @@ class RequestThread extends Thread {
 		}
 	}
 
-	void run(String host, int numRequests)
+	public void run()
 	{
 		for(int i=0; i<numRequests; i++) {
 			boolean worked = false;
@@ -37,7 +48,7 @@ class RequestThread extends Thread {
 					double diff_secs = (double)(end_time - start_time) / (double)1000000000;
 					double rate = request_mbs / diff_secs;
 
-					System.out.println("Rate: " + rate);
+					System.out.println("Thread " + threadid + " Rate: " + rate);
 					worked = true;
 				}
 			}
@@ -122,12 +133,14 @@ public class Requester {
 
 		int requestsPerThread = numRequests / numThreads;
 
+		System.out.println("Number of threads: " + numThreads);
+
 		RequestThread[] threads = new RequestThread[numThreads];
 		for(int i=0; i<threads.length; i++) {
-			threads[i] = new RequestThread();
+			threads[i] = new RequestThread(args[0], requestsPerThread, i);
 		}
 		for(int i=0; i<threads.length; i++) {
-			threads[i].run(args[0], requestsPerThread);
+			threads[i].start();
 		}
 	}
 
