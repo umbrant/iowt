@@ -167,6 +167,7 @@ void* request_handler(void *fd_ptr)
         		if(rv == -1) {
             		error("ERROR sendfile to socket");
         		}
+        		close(in_fd);
         	}
         	else if(request.storage == STORAGE_MEMORY 
         	        && request.compression == COMPRESSION_NONE) {
