@@ -165,7 +165,7 @@ void* request_handler(void *fd_ptr)
         		// zero-copy I/O send to the socket
         		rv = sendfile(sockfd, in_fd, 0, size);
         		if(rv == -1) {
-            		error("ERROR sendfile to socket");
+            		fprintf(stderr, "ERROR sendfile to socket\n");
         		}
         		close(in_fd);
         	}
@@ -195,8 +195,8 @@ void* request_handler(void *fd_ptr)
                         int splice_bytes = splice(pipefd[0], NULL, sockfd, NULL, memfile.iov_len, 0);
 				        if(splice_bytes == -1) {
 				            //printf("%lu bytes sent so far\n", memfile.iov_len - bytes_to_splice);
-					        error("ERROR splice to socket");
-
+					        fprintf(stderr,"ERROR splice to socket\n");
+					        break;
 				        } else {
                             bytes_to_splice -= splice_bytes;
                         }
