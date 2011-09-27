@@ -1,52 +1,53 @@
 import java.io.*;
 import java.net.*;
 public class Provider{
-	ServerSocket providerSocket;
-	Socket connection = null;
+    ServerSocket providerSocket;
+    Socket connection = null;
 
-	byte[] filebytes;
+    byte[] filebytes;
 
-	Provider(String filename)
-	{
-		try {
-			getBytesFromFile(new File(filename));
-		} catch(IOException e) {
-			e.printStackTrace();
-		}
-	}
-	void close()
-	{
-		try {
-			providerSocket.close();
-		} catch(IOException e) {
-			e.printStackTrace();
-			System.exit(-1);
-		}
-	}
-	void run()
-	{
-		try {
-			providerSocket = new ServerSocket(8002, 10);
-		} catch(IOException e) {
-			e.printStackTrace();
-			System.exit(-1);
-		}
-		while(true) {
-			try {
-				System.out.println("Waiting for connection");
-				connection = providerSocket.accept();
-				System.out.println("Connection received from " + connection.getInetAddress().getHostName());
+    Provider(String filename)
+    {
+        try {
+            getBytesFromFile(new File(filename));
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+    }
+    void close()
+    {
+        try {
+            providerSocket.close();
+        } catch(IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+    void run()
+    {
+        try {
+            providerSocket = new ServerSocket(8002, 10);
+        } catch(IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        while(true) {
+            try {
+                System.out.println("Waiting for connection");
+                connection = providerSocket.accept();
+                System.out.println("Connection received from " + connection.getInetAddress().getHostName());
 
-				new Thread(
-            			new WorkerRunnable(connection, filebytes)
-        				).start();
-			}
-			catch(IOException ioException){
-				ioException.printStackTrace();
-			}
-		}
-	}
-	void getBytesFromFile(File file) throws IOException {
+                new Thread(
+                        new WorkerRunnable(connection, filebytes)
+                        ).start();
+            }
+            catch(IOException ioException){
+                ioException.printStackTrace();
+            }
+        }
+    }
+
+    void getBytesFromFile(File file) throws IOException {
         InputStream is = new FileInputStream(file);
 
         // Get the size of the file
@@ -57,7 +58,7 @@ public class Provider{
         int offset = 0;
         int numRead = 0;
         while (offset < filebytes.length
-               	&& (numRead=is.read(filebytes, offset, filebytes.length-offset)) >= 0)
+                && (numRead=is.read(filebytes, offset, filebytes.length-offset)) >= 0)
         {
             offset += numRead;
         }
@@ -69,11 +70,11 @@ public class Provider{
         // Close the input stream and return bytes
         is.close();
     }
-	public static void main(String args[])
-	{
-		Provider server = new Provider(args[0]);
-		server.run();
-	}
+    public static void main(String args[])
+    {
+        Provider server = new Provider(args[0]);
+        server.run();
+    }
 }
 
 class WorkerRunnable implements Runnable {
@@ -91,15 +92,15 @@ class WorkerRunnable implements Runnable {
         try {
             InputStream input  = clientSocket.getInputStream();
             OutputStream output = clientSocket.getOutputStream();
-			// Read in the message from the client
-			byte[] buffer = new byte[100];
-			int available = input.available();
-			if(available > 100) {
-				available = 100;
-			}
-			int bytes_read = input.read(buffer, 0, available);
-			System.out.println("client>" + buffer);
-			// Write a reply
+            // Read in the message from the client
+            byte[] buffer = new byte[100];
+            int available = input.available();
+            if(available > 100) {
+                available = 100;
+            }
+            int bytes_read = input.read(buffer, 0, available);
+            System.out.println("client>" + buffer);
+            // Write a reply
             output.write(filebytes, 0, filebytes.length);
             output.flush();
             output.close();
